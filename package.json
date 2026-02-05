@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "new:post": "node scripts/new-post.js"
+    "new:post": "node scripts/new-post.js",
+    "world:run": "node scripts/world/run.js"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
