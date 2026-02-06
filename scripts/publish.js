@@ -21,48 +21,44 @@ function formatYamlList(values, indent = 0) {
   return values.map((value) => `${padding}- ${value}`).join("\n");
 }
 
-function formatFaqList(faqs, indent = 0) {
-  const padding = " ".repeat(indent);
-  return faqs
-    .map(
-      (item) =>
-        `${padding}- question: ${yamlString(item.question)}\n${padding}  answer: ${yamlString(item.answer)}`
-    )
-    .join("\n");
-}
-
-function resolvePostsDir() {
-  return path.join(CONTENT_DIR, "posts", "en");
+function resolvePostsDir(lang) {
+  return path.join(CONTENT_DIR, "posts", lang);
 }
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-function fileExistsAcrossDirs(fileName) {
+function fileExistsAcrossDirs(fileName, lang) {
   const candidates = [
-    path.join(CONTENT_DIR, "posts", "en", fileName),
-    path.join(CONTENT_DIR, "en", "posts", fileName)
+    path.join(CONTENT_DIR, "posts", lang, fileName),
+    path.join(CONTENT_DIR, lang, "posts", fileName)
   ];
   return candidates.some((filePath) => fs.existsSync(filePath));
 }
 
-function publishPost(post) {
+function resolveUniqueFileName(baseSlug, date, lang) {
+  const baseName = `${baseSlug}-${date}`;
+  let counter = 1;
+  let fileName = `${baseName}.md`;
+  while (fileExistsAcrossDirs(fileName, lang)) {
+    counter += 1;
+    fileName = `${baseName}-${counter}.md`;
+  }
+  return fileName;
+}
+
+function publishPost(post, options = {}) {
+  const lang = options.lang || "en";
   const title = post.title?.trim();
   if (!title) {
     throw new Error("Post title is required.");
   }
 
   const date = post.date || new Date().toISOString().slice(0, 10);
-  const slug = slugify(post.slug || title);
-  const fileName = `${slug}-${date}.md`;
+  const slug = slugify(title);
+  const fileName = resolveUniqueFileName(slug, date, lang);
 
-  if (fileExistsAcrossDirs(fileName)) {
-    console.log(`Post already exists: ${fileName}`);
-    return null;
-  }
-
-  const faqItems = Array.isArray(post.faq) ? post.faq : [];
   const frontmatter = [
     "---",
     `title: ${yamlString(title)}`,
@@ -75,26 +71,17 @@ function publishPost(post) {
         : [yamlString("world problems")],
       2
     ),
+    `source_url: ${yamlString(post.source_url || "")}`,
+    `source_subreddit: ${yamlString(post.source_subreddit || "")}`,
     `cta_primary_label: ${yamlString(post.cta_primary_label || "Learn more")}`,
     `cta_primary_url: ${yamlString(post.cta_primary_url || "https://example.com/world")}`,
-    `meta_title: ${yamlString(post.meta_title || title)}`,
-    `meta_description: ${yamlString(post.meta_description || post.description || "")}`,
-    "keywords:",
-    formatYamlList(
-      Array.isArray(post.keywords) && post.keywords.length > 0
-        ? post.keywords.map((keyword) => yamlString(keyword))
-        : [yamlString("world problems")],
-      2
-    ),
-    faqItems.length > 0 ? "faq:" : "faq: []",
-    faqItems.length > 0 ? formatFaqList(faqItems, 2) : "",
     "---",
     "",
     post.body_markdown.trim(),
     ""
   ].join("\n");
 
-  const targetDir = resolvePostsDir();
+  const targetDir = resolvePostsDir(lang);
   ensureDir(targetDir);
 
   const filePath = path.join(targetDir, fileName);
