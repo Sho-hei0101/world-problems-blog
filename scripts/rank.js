@@ -88,7 +88,10 @@ function recencyScore(dateValue) {
   if (!dateValue) {
     return 0;
   }
-  const date = new Date(dateValue);
+  const date =
+    typeof dateValue === "number"
+      ? new Date(dateValue * 1000)
+      : new Date(dateValue);
   if (Number.isNaN(date.valueOf())) {
     return 0;
   }
@@ -101,18 +104,18 @@ function recencyScore(dateValue) {
 
 function rankCandidates(candidates, limit = 5) {
   const safe = candidates.filter((candidate) => {
-    const text = `${candidate.title} ${candidate.summary || ""}`;
+    const text = `${candidate.title} ${candidate.body || ""}`;
     return !isUnsafe(text);
   });
 
   const ranked = safe
     .map((candidate) => {
-      const text = `${candidate.title} ${candidate.summary || ""}`;
+      const text = `${candidate.title} ${candidate.body || ""}`;
       return {
         ...candidate,
         score:
           keywordScore(text) +
-          recencyScore(candidate.published) +
+          recencyScore(candidate.created_utc || candidate.published) +
           clarityScore(candidate.title) +
           subredditScore(candidate.subreddit)
       };
