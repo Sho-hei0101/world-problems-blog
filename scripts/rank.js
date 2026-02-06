@@ -28,6 +28,37 @@ const PRIORITY_KEYWORDS = [
   "air quality"
 ];
 
+const CLARITY_KEYWORDS = [
+  "how",
+  "why",
+  "what",
+  "should",
+  "help",
+  "advice",
+  "fix",
+  "solve",
+  "struggling",
+  "can't",
+  "cannot",
+  "avoid",
+  "reduce",
+  "improve"
+];
+
+const GENERAL_INTEREST_SUBREDDITS = new Set([
+  "askreddit",
+  "nostupidquestions",
+  "explainlikeimfive",
+  "personalfinance",
+  "relationships",
+  "careerquestions",
+  "legaladvice",
+  "travel",
+  "parenting",
+  "fitness",
+  "frugal"
+]);
+
 function isUnsafe(text) {
   return UNSAFE_PATTERNS.some((pattern) => pattern.test(text));
 }
@@ -38,6 +69,19 @@ function keywordScore(text) {
     (score, keyword) => (lower.includes(keyword) ? score + 2 : score),
     0
   );
+}
+
+function clarityScore(text) {
+  const lower = text.toLowerCase();
+  const keywordHits = CLARITY_KEYWORDS.filter((keyword) => lower.includes(keyword)).length;
+  const questionMark = lower.includes("?") ? 1 : 0;
+  const lengthBonus = lower.length > 40 && lower.length < 120 ? 1 : 0;
+  return keywordHits + questionMark + lengthBonus;
+}
+
+function subredditScore(subreddit) {
+  if (!subreddit) return 0;
+  return GENERAL_INTEREST_SUBREDDITS.has(subreddit.toLowerCase()) ? 2 : 0;
 }
 
 function recencyScore(dateValue) {
@@ -66,7 +110,11 @@ function rankCandidates(candidates, limit = 5) {
       const text = `${candidate.title} ${candidate.summary || ""}`;
       return {
         ...candidate,
-        score: keywordScore(text) + recencyScore(candidate.published)
+        score:
+          keywordScore(text) +
+          recencyScore(candidate.published) +
+          clarityScore(candidate.title) +
+          subredditScore(candidate.subreddit)
       };
     })
     .sort((a, b) => b.score - a.score);
