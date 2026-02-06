@@ -70,6 +70,18 @@ export default function PostPage({ params }) {
           </Link>
         ))}
       </div>
+      {(post.source_subreddit || post.source_url) && (
+        <p style={{ marginTop: "8px", fontSize: "0.9rem", color: "#6b7280" }}>
+          Source:{" "}
+          {post.source_url ? (
+            <a href={post.source_url} target="_blank" rel="noreferrer">
+              Reddit /r/{post.source_subreddit || "unknown"}
+            </a>
+          ) : (
+            `Reddit /r/${post.source_subreddit}`
+          )}
+        </p>
+      )}
       <div className="article-content" dangerouslySetInnerHTML={{ __html: post.html }} />
       <a className="cta" href={post.cta_primary_url}>
         {post.cta_primary_label}
