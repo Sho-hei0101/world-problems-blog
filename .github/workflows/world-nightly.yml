@@ -5,6 +5,10 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 concurrency:
   group: world-problems-nightly
   cancel-in-progress: false
@@ -99,8 +103,8 @@ jobs:
             exit 1
           fi
 
-          if [[ "${author}" != "github-actions[bot]" && "${author}" != "${{ github.actor }}" ]]; then
-            echo "Refusing to auto-merge: PR author is not github-actions[bot] or workflow actor."
+          if [[ "${author}" != "github-actions[bot]" && "${author}" != "github-actions" && "${author}" != "${GITHUB_ACTOR}" ]]; then
+            echo "Refusing to auto-merge: PR author is not github-actions[bot], github-actions, or workflow actor."
             exit 1
           fi
 
