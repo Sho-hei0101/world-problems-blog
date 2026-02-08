@@ -36,30 +36,29 @@ function saveCache(cache) {
   fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 2), "utf8");
 }
 
-function resolvePostsDirs(lang) {
-  return [
-    path.join(process.cwd(), "content", "posts", lang),
-    path.join(process.cwd(), "content", lang, "posts")
-  ].filter((dir) => fs.existsSync(dir));
-}
-
-function countExistingPosts() {
-  return DEFAULT_LOCALES.reduce((count, lang) => {
-    const dirs = resolvePostsDirs(lang);
-    const fileCount = dirs.reduce((sum, dir) => {
-      const files = fs.readdirSync(dir).filter((file) => file.endsWith(".md"));
-      return sum + files.length;
-    }, 0);
-    return count + fileCount;
-  }, 0);
-}
-
 function resolveLocalesToGenerate() {
   const envLocales = process.env.WORLD_LOCALES
     ? process.env.WORLD_LOCALES.split(",").map((locale) => locale.trim())
     : DEFAULT_LOCALES;
   const uniqueLocales = Array.from(new Set(envLocales.filter(Boolean)));
   return uniqueLocales.length ? uniqueLocales : ["en"];
+}
+
+function classifyCandidate(candidate) {
+  if (!candidate.title || candidate.title.length < 12) {
+    return { ok: false, reason: "title_too_short" };
+  }
+  if (candidate.over_18) {
+    return { ok: false, reason: "over_18" };
+  }
+  if (candidate.spoiler) {
+    return { ok: false, reason: "spoiler" };
+  }
+  const text = `${candidate.title} ${candidate.body || ""}`.trim();
+  if (isSpamOrUnsafeText(text)) {
+    return { ok: false, reason: "spam_or_pii" };
+  }
+  return { ok: true };
 }
 
 function isSpamOrUnsafeText(text) {
@@ -72,18 +71,56 @@ function isSpamOrUnsafeText(text) {
   return politics.test(lower) || pii.test(lower) || nsfw.test(lower);
 }
 
-function isCandidateSafe(candidate) {
-  const text = `${candidate.title} ${candidate.body || ""}`.trim();
-  if (!candidate.title || candidate.title.length < 12) {
-    return false;
-  }
-  if (candidate.over_18 || candidate.spoiler) {
-    return false;
-  }
-  if (isSpamOrUnsafeText(text)) {
-    return false;
-  }
-  return true;
+function buildHeartbeatPost({ locale, reason, stats }) {
+  const date = new Date().toISOString().slice(0, 10);
+  const title = `Today's pipeline status (${locale.toUpperCase()})`;
+  const lines = [
+    "# Today's pipeline status",
+    "",
+    `Date: ${date}`,
+    "",
+    "## Summary",
+    "",
+    `- Reason: ${reason}`,
+    `- Locales checked: ${stats.locales.join(", ") || "n/a"}`,
+    `- Total candidates fetched: ${stats.totalCandidates}`,
+    `- Total safe candidates: ${stats.totalSafe}`,
+    `- Total cached skips: ${stats.totalCached}`,
+    `- Total selected: ${stats.totalSelected}`,
+    "",
+    "## Notes",
+    "",
+    "This heartbeat entry is generated automatically when no new posts can be produced.",
+    "It confirms the nightly pipeline executed and documents the current input conditions."
+  ];
+
+  return {
+    title,
+    description:
+      "Daily pipeline status update for the World Problems Blog automation run.",
+    date,
+    tags: ["automation", "pipeline status"],
+    cta_primary_label: "View repository",
+    cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
+    source_url: "",
+    source_subreddit: "",
+    source_id: `heartbeat-${new Date().toISOString()}`,
+    body_markdown: lines.join("\n")
+  };
+}
+
+function logLocaleStats(stats) {
+  const reasons = Object.entries(stats.unsafeCounts)
+    .map(([reason, count]) => `${reason}=${count}`)
+    .join(", ");
+  const fetchSummary = stats.fetchSummary
+    .map((item) => `${item.sort}:${item.items} items`)
+    .join(" | ");
+  console.log(
+    `Locale ${stats.locale}: fetched=${stats.items} safe=${stats.safeCandidates} cached_skips=${stats.cached} selected=${stats.selected} created=${stats.created}`
+  );
+  console.log(`Locale ${stats.locale}: unsafe_breakdown=${reasons || "none"}`);
+  console.log(`Locale ${stats.locale}: fetch_summary=${fetchSummary || "none"}`);
 }
 
 async function run() {
@@ -99,26 +136,74 @@ async function run() {
   const cachedIds = new Set(cache.seen.map((item) => item.id));
   const cachedUrls = new Set(cache.seen.map((item) => item.url));
   const createdFiles = [];
+  const localeStats = [];
 
   for (const locale of locales) {
     const subreddits = getSubredditsForLocale(locale);
-    const { items, subredditsFetched } = await fetchRedditPosts({
-      subreddits,
-      localeHint: locale
-    });
+    const fetchSummary = [];
+    const uniqueItems = new Map();
+    let subredditsFetched = 0;
+
+    for (const sort of ["hot", "new", "top"]) {
+      const { items, subredditsFetched: fetchedCount } = await fetchRedditPosts({
+        subreddits,
+        localeHint: locale,
+        sort
+      });
+      subredditsFetched += fetchedCount;
+      fetchSummary.push({ sort, items: items.length });
+      for (const item of items) {
+        if (!uniqueItems.has(item.id)) {
+          uniqueItems.set(item.id, item);
+        }
+      }
+    }
+
+    const items = Array.from(uniqueItems.values());
     console.log(
-      `Fetched ${subredditsFetched} subreddit(s) for ${locale} with ${items.length} candidate items.`
+      `Fetched ${subredditsFetched} subreddit(s) for ${locale} with ${items.length} unique candidate items.`
     );
 
-    const filtered = items
-      .filter(isCandidateSafe)
-      .filter((item) => !cachedIds.has(item.id) && !cachedUrls.has(item.url));
+    const unsafeCounts = {
+      title_too_short: 0,
+      over_18: 0,
+      spoiler: 0,
+      spam_or_pii: 0
+    };
+    let cachedCount = 0;
+    const safeCandidates = [];
+    for (const item of items) {
+      const verdict = classifyCandidate(item);
+      if (!verdict.ok) {
+        unsafeCounts[verdict.reason] += 1;
+        continue;
+      }
+      if (cachedIds.has(item.id) || cachedUrls.has(item.url)) {
+        cachedCount += 1;
+        continue;
+      }
+      safeCandidates.push(item);
+    }
 
-    const ranked = rankCandidates(filtered, MAX_POSTS_PER_LOCALE + 3);
+    const ranked = rankCandidates(safeCandidates, MAX_POSTS_PER_LOCALE + 3);
     const selected = ranked.slice(0, MAX_POSTS_PER_LOCALE);
+
+    const stats = {
+      locale,
+      subredditsFetched,
+      items: items.length,
+      safeCandidates: safeCandidates.length,
+      cached: cachedCount,
+      selected: selected.length,
+      created: 0,
+      unsafeCounts,
+      fetchSummary
+    };
+    localeStats.push(stats);
 
     if (selected.length === 0) {
       console.log(`No suitable candidates for locale ${locale}.`);
+      logLocaleStats(stats);
       continue;
     }
 
@@ -135,22 +220,50 @@ async function run() {
         if (publishedPath) {
           createdFiles.push(publishedPath);
           cache.seen.push({ id: candidate.id, url: candidate.url, title: candidate.title });
+          stats.created += 1;
         }
       } catch (error) {
         console.error(`Failed to generate/publish post for ${locale}:`, error);
       }
     }
+    logLocaleStats(stats);
   }
 
   cache.seen = cache.seen.slice(-300);
   saveCache(cache);
 
   if (createdFiles.length === 0) {
-    console.log("No new posts were created.");
-    if (countExistingPosts() === 0) {
-      process.exitCode = 1;
+    const totalCandidates = localeStats.reduce((sum, item) => sum + item.items, 0);
+    const totalSafe = localeStats.reduce((sum, item) => sum + item.safeCandidates, 0);
+    const totalCached = localeStats.reduce((sum, item) => sum + item.cached, 0);
+    const totalSelected = localeStats.reduce((sum, item) => sum + item.selected, 0);
+    const reason =
+      totalCandidates === 0
+        ? "No Reddit candidates fetched."
+        : totalSafe === 0
+          ? "All candidates filtered out by safety rules or cache."
+          : "Post generation/publish failed.";
+    console.log(`No new posts were created. Reason: ${reason}`);
+
+    const heartbeat = buildHeartbeatPost({
+      locale: "en",
+      reason,
+      stats: {
+        locales,
+        totalCandidates,
+        totalSafe,
+        totalCached,
+        totalSelected
+      }
+    });
+    const heartbeatPath = publishPost(heartbeat, { lang: "en" });
+    if (heartbeatPath) {
+      createdFiles.push(heartbeatPath);
+      console.log(`Heartbeat post created: ${heartbeatPath}`);
+    } else {
+      console.error("Heartbeat post failed to publish.");
+      process.exit(1);
     }
-    return;
   }
 
   console.log("Created posts:");

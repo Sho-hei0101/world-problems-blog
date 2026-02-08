@@ -50,13 +50,19 @@ function normalizePost(post, localeHint) {
   };
 }
 
-async function fetchRedditPosts({ subreddits, limit = DEFAULT_LIMIT, localeHint = "en" }) {
+async function fetchRedditPosts({
+  subreddits,
+  limit = DEFAULT_LIMIT,
+  localeHint = "en",
+  sort = "hot"
+}) {
   const items = [];
   const selected = (subreddits || []).slice(0, MAX_SUBREDDITS_PER_LOCALE);
   let subredditsFetched = 0;
 
   for (const subreddit of selected) {
-    const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
+    const safeSort = sort || "hot";
+    const url = `https://www.reddit.com/r/${subreddit}/${safeSort}.json?limit=${limit}`;
     try {
       const response = await fetchWithRetry(url, {
         headers: {

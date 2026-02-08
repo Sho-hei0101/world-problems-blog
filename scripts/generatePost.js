@@ -216,6 +216,7 @@ async function generatePost(candidate, sources, options = {}) {
     cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
     source_url: sources?.[0] || candidate.url,
     source_subreddit: candidate.subreddit || "",
+    source_id: candidate.id || "",
     body_markdown: body
   };
 }

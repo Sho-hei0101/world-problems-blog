@@ -20,6 +20,19 @@ npm ci
 OPENAI_API_KEY=your-key npm run world:run
 ```
 
+## Verification (local & CI)
+
+After running the generator, confirm new content was created in `content/posts/{lang}/`:
+
+```bash
+git status --porcelain content/posts
+ls -R content/posts | head -n 50
+```
+
+If no files were created, the generator logs the rejection reasons and exits non-zero in CI.
+When Reddit input is empty or fully filtered, the workflow generates a short “pipeline status”
+heartbeat post to ensure a diff is produced.
+
 Optional environment variables:
 
 - `WORLD_LOCALES=en,es,fr,de,ja` (defaults to all locales)
