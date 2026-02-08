@@ -88,6 +88,24 @@ nav ul {
   margin-top: 24px;
 }
 
+.related-posts {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.related-posts ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.related-posts a {
+  color: var(--accent);
+}
+
 footer {
   margin-top: 60px;
   color: var(--muted);

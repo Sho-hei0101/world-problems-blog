@@ -5,10 +5,10 @@ import {
   buildPostUrl,
   getPostSlugs,
   getPostBySlug,
-  getTranslationsForSlug
+  getTranslationsForSlug,
+  getRelatedPosts
 } from "../../../../lib/posts";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://example.com";
+import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE, AUTHOR_NAME } from "../../../../lib/site";
 
 export function generateStaticParams() {
   return SUPPORTED_LANGUAGES.flatMap((lang) => {
@@ -29,6 +29,7 @@ export function generateMetadata({ params }) {
     acc[locale] = `${SITE_URL}${buildPostUrl(locale, slug)}`;
     return acc;
   }, {});
+  const ogImage = post.og_image || post.image || DEFAULT_OG_IMAGE;
 
   return {
     title: post.title,
@@ -43,18 +44,50 @@ export function generateMetadata({ params }) {
       url: `${SITE_URL}${buildPostUrl(lang, slug)}`,
       type: "article",
       locale: lang,
-      siteName: "World Problems Blog"
-    }
+      siteName: SITE_NAME,
+      images: [
+        {
+          url: ogImage,
+          alt: post.title
+        }
+      ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.description,
+      images: [ogImage]
+    },
+    authors: [{ name: AUTHOR_NAME }]
   };
 }
 
 export default function PostPage({ params }) {
   const { lang, slug } = params;
   const post = getPostBySlug(lang, slug);
+  const relatedPosts = post ? getRelatedPosts(lang, slug, post.tags) : [];
 
   if (!post) {
     notFound();
   }
+  const ogImage = post.og_image || post.image || DEFAULT_OG_IMAGE;
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    dateModified: post.updated_at || post.generated_at || post.date,
+    author: {
+      "@type": "Person",
+      name: AUTHOR_NAME
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `${SITE_URL}${buildPostUrl(lang, slug)}`
+    },
+    image: [ogImage]
+  };
 
   return (
     <article>
@@ -90,9 +123,25 @@ export default function PostPage({ params }) {
         </p>
       )}
       <div className="article-content" dangerouslySetInnerHTML={{ __html: post.html }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <a className="cta" href={post.cta_primary_url}>
         {post.cta_primary_label}
       </a>
+      {relatedPosts.length > 0 && (
+        <section className="related-posts">
+          <h2>Related posts</h2>
+          <ul>
+            {relatedPosts.map((related) => (
+              <li key={related.slug}>
+                <Link href={buildPostUrl(lang, related.slug)}>{related.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </article>
   );
 }
