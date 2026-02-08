@@ -29,6 +29,16 @@ jobs:
         run: npm run world:run
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Show generated posts
+        run: |
+          echo "Generated posts directory snapshot:"
+          ls -R content/posts | head -n 200
+      - name: Verify post output
+        run: |
+          if [[ -z "$(git status --porcelain content/posts)" ]]; then
+            echo "No new posts generated. See generator logs above."
+            exit 1
+          fi
       - name: Create PR
         id: create_pr
         uses: peter-evans/create-pull-request@v6

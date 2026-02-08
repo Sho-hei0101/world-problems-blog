@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
@@ -27,6 +28,14 @@ function resolvePostsDir(lang) {
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
+}
+
+function buildSourceSuffix(post) {
+  const raw = post.source_id || post.source_url || "";
+  if (!raw) {
+    return "";
+  }
+  return crypto.createHash("sha256").update(String(raw)).digest("hex").slice(0, 10);
 }
 
 function fileExistsAcrossDirs(fileName, lang) {
@@ -57,7 +66,9 @@ function publishPost(post, options = {}) {
 
   const date = post.date || new Date().toISOString().slice(0, 10);
   const slug = slugify(title);
-  const fileName = resolveUniqueFileName(slug, date, lang);
+  const sourceSuffix = buildSourceSuffix(post);
+  const baseSlug = sourceSuffix ? `${slug}-${sourceSuffix}` : slug;
+  const fileName = resolveUniqueFileName(baseSlug, date, lang);
 
   const frontmatter = [
     "---",
@@ -73,6 +84,7 @@ function publishPost(post, options = {}) {
     ),
     `source_url: ${yamlString(post.source_url || "")}`,
     `source_subreddit: ${yamlString(post.source_subreddit || "")}`,
+    `source_id: ${yamlString(post.source_id || "")}`,
     `cta_primary_label: ${yamlString(post.cta_primary_label || "Learn more")}`,
     `cta_primary_url: ${yamlString(post.cta_primary_url || "https://example.com/world")}`,
     "---",
