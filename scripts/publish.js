@@ -47,12 +47,12 @@ function fileExistsAcrossDirs(fileName, lang) {
 }
 
 function resolveUniqueFileName(baseSlug, date, lang) {
-  const baseName = `${baseSlug}-${date}`;
+  const baseName = `${date}-${baseSlug}`;
   let counter = 1;
   let fileName = `${baseName}.md`;
   while (fileExistsAcrossDirs(fileName, lang)) {
     counter += 1;
-    fileName = `${baseName}-${counter}.md`;
+    fileName = `${baseName}-v${counter}.md`;
   }
   return fileName;
 }
@@ -66,8 +66,9 @@ function publishPost(post, options = {}) {
 
   const date = post.date || new Date().toISOString().slice(0, 10);
   const slug = slugify(title);
+  const sourceIdSlug = slugify(post.source_id || "");
   const sourceSuffix = buildSourceSuffix(post);
-  const baseSlug = sourceSuffix ? `${slug}-${sourceSuffix}` : slug;
+  const baseSlug = [slug, sourceIdSlug, sourceSuffix].filter(Boolean).join("-");
   const fileName = resolveUniqueFileName(baseSlug, date, lang);
 
   const frontmatter = [
@@ -85,6 +86,8 @@ function publishPost(post, options = {}) {
     `source_url: ${yamlString(post.source_url || "")}`,
     `source_subreddit: ${yamlString(post.source_subreddit || "")}`,
     `source_id: ${yamlString(post.source_id || "")}`,
+    `generated_at: ${yamlString(post.generated_at || new Date().toISOString())}`,
+    `source_digest: ${yamlString(post.source_digest || "")}`,
     `cta_primary_label: ${yamlString(post.cta_primary_label || "Learn more")}`,
     `cta_primary_url: ${yamlString(post.cta_primary_url || "https://example.com/world")}`,
     "---",
