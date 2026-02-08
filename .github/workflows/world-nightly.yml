@@ -39,6 +39,10 @@ jobs:
             echo "No new posts generated. See generator logs above."
             exit 1
           fi
+          if [[ -z "$(find content/posts -type f -name '*.md' -print -quit)" ]]; then
+            echo "No markdown files found under content/posts."
+            exit 1
+          fi
       - name: Create PR
         id: create_pr
         uses: peter-evans/create-pull-request@v6
@@ -61,7 +65,9 @@ jobs:
             content/posts/**
       - name: No changes detected
         if: steps.create_pr.outputs.pull-request-number == ''
-        run: echo "No PR created (no changes detected)."
+        run: |
+          echo "::warning::No PR created (no changes detected)."
+          exit 1
       - name: Enable auto-merge
         if: steps.create_pr.outputs.pull-request-number != ''
         env:

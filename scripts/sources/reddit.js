@@ -36,7 +36,7 @@ async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
   throw lastError;
 }
 
-function normalizePost(post, localeHint) {
+function normalizePost(post, localeHint, fetchedAt) {
   return {
     id: post.id,
     title: post.title || "",
@@ -46,7 +46,8 @@ function normalizePost(post, localeHint) {
     score: post.score || 0,
     num_comments: post.num_comments || 0,
     created_utc: post.created_utc,
-    locale_hint: localeHint
+    locale_hint: localeHint,
+    fetched_at: fetchedAt
   };
 }
 
@@ -77,6 +78,7 @@ async function fetchRedditPosts({
         continue;
       }
 
+      const fetchedAt = new Date().toISOString();
       const json = await response.json();
       const children = json?.data?.children || [];
       for (const child of children) {
@@ -85,7 +87,7 @@ async function fetchRedditPosts({
           continue;
         }
         items.push({
-          ...normalizePost(post, localeHint),
+          ...normalizePost(post, localeHint, fetchedAt),
           over_18: post.over_18 || false,
           spoiler: post.spoiler || false
         });

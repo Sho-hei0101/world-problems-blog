@@ -39,9 +39,12 @@ function saveCache(cache) {
 function resolveLocalesToGenerate() {
   const envLocales = process.env.WORLD_LOCALES
     ? process.env.WORLD_LOCALES.split(",").map((locale) => locale.trim())
-    : DEFAULT_LOCALES;
-  const uniqueLocales = Array.from(new Set(envLocales.filter(Boolean)));
-  return uniqueLocales.length ? uniqueLocales : ["en"];
+    : [];
+  const requiredLocales = DEFAULT_LOCALES;
+  const uniqueLocales = Array.from(
+    new Set([...requiredLocales, ...envLocales].filter(Boolean))
+  );
+  return uniqueLocales.length ? uniqueLocales : DEFAULT_LOCALES;
 }
 
 function classifyCandidate(candidate) {
@@ -73,6 +76,7 @@ function isSpamOrUnsafeText(text) {
 
 function buildHeartbeatPost({ locale, reason, stats }) {
   const date = new Date().toISOString().slice(0, 10);
+  const generatedAt = new Date().toISOString();
   const title = `Today's pipeline status (${locale.toUpperCase()})`;
   const lines = [
     "# Today's pipeline status",
@@ -105,6 +109,8 @@ function buildHeartbeatPost({ locale, reason, stats }) {
     source_url: "",
     source_subreddit: "",
     source_id: `heartbeat-${new Date().toISOString()}`,
+    generated_at: generatedAt,
+    source_digest: "",
     body_markdown: lines.join("\n")
   };
 }

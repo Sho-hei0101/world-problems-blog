@@ -3,11 +3,11 @@ function wordCount(text) {
 }
 
 const WORD_LIMITS = {
-  en: { min: 900, max: 1400 },
-  es: { min: 700, max: 1200 },
-  fr: { min: 700, max: 1200 },
-  de: { min: 700, max: 1200 },
-  ja: { min: 700, max: 1200 }
+  en: { min: 1200, max: 1800 },
+  es: { min: 1200, max: 1800 },
+  fr: { min: 1200, max: 1800 },
+  de: { min: 1200, max: 1800 },
+  ja: { min: 1200, max: 1800 }
 };
 
 const LANGUAGE_NAMES = {
@@ -118,6 +118,24 @@ function addFillerIfNeeded(body, minWords, maxWords) {
   return updated;
 }
 
+function buildSection(text, fallback) {
+  const trimmed = String(text || "").trim();
+  return trimmed || fallback;
+}
+
+function buildRegionalHeading(lang, languageName) {
+  return `Regional Perspective (${languageName || lang})`;
+}
+
+function buildSourceDigest(candidate) {
+  const crypto = require("crypto");
+  const url = candidate?.url || "";
+  const id = candidate?.id || "";
+  const fetchedAt = candidate?.fetched_at || "";
+  const raw = `${url}|${id}|${fetchedAt}`;
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
 async function callOpenAI(prompt, model, maxTokens) {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -163,7 +181,7 @@ async function generatePost(candidate, sources, options = {}) {
     },
     {
       role: "user",
-      content: `Write a long-form blog post in ${languageName} (${lang}).\n\nRequirements:\n- SEO title (<= 70 chars)\n- Meta description (<= 160 chars)\n- 3–6 tags\n- Article body with clear headings (use ## and ###, no H1).\n- Include a brief disclaimer that this is general information, not professional advice.\n- Provide an FAQ section with 3–5 Q/A items.\n- Provide an actionable checklist (5–8 bullets).\n- Provide 2–3 reputable general sources with label + URL (no scraping).\n- Target length: ${limits.min}-${limits.max} words for the full post.\n\nTopic (from Reddit):\nTitle: ${candidate.title}\nBody: ${candidate.body || ""}\nSubreddit: ${candidate.subreddit || ""}\nURL: ${candidate.url || ""}\n\nReturn JSON with keys: seo_title, meta_description, tags, article_body, faq (array of {q,a}), checklist (array), sources (array of {label,url}), disclaimer.`
+      content: `Write a long-form blog post in ${languageName} (${lang}).\n\nRequirements:\n- SEO title (<= 70 chars)\n- Meta description (<= 160 chars)\n- 3–6 tags\n- Include a brief disclaimer that this is general information, not professional advice.\n- Provide 3–5 FAQ Q/A items.\n- Provide an actionable checklist (5–8 bullets).\n- Provide 2–3 reputable general sources with label + URL (no scraping).\n- Include these required sections (use ## headings, no H1):\n  - Problem Overview\n  - Why This Matters Globally\n  - Regional Perspective (${languageName})\n  - Practical Actions (Checklist)\n  - FAQ\n  - Sources\n- Target length: ${limits.min}-${limits.max} words for the full post.\n\nTopic (from Reddit):\nTitle: ${candidate.title}\nBody: ${candidate.body || ""}\nSubreddit: ${candidate.subreddit || ""}\nURL: ${candidate.url || ""}\n\nReturn JSON with keys: seo_title, meta_description, tags, problem_overview, why_matters, regional_perspective, practical_actions_intro, faq (array of {q,a}), checklist (array), sources (array of {label,url}), disclaimer.`
     }
   ];
 
@@ -184,23 +202,50 @@ async function generatePost(candidate, sources, options = {}) {
   const faqBlock = buildFaq(result.faq) || buildFaq(fallbackFaq());
   const checklistBlock = buildChecklist(result.checklist) || buildChecklist(fallbackChecklist());
   const sourcesBlock = buildSources(result.sources, sources?.[0] || candidate.url);
+  const regionalHeading = buildRegionalHeading(lang, languageName);
+  const generatedAt = new Date().toISOString();
+  const sourceDigest = buildSourceDigest(candidate);
 
   const bodySections = [
     `# ${title}`,
     "",
     `> ${disclaimer}`,
     "",
-    String(result.article_body || "").trim(),
+    "## Problem Overview",
+    "",
+    buildSection(
+      result.problem_overview,
+      "This section summarizes the core issue, who it affects, and the immediate symptoms people notice."
+    ),
+    "",
+    "## Why This Matters Globally",
+    "",
+    buildSection(
+      result.why_matters,
+      "Here we connect the local issue to broader social, economic, or environmental consequences that matter across regions."
+    ),
+    "",
+    `## ${regionalHeading}`,
+    "",
+    buildSection(
+      result.regional_perspective,
+      "This perspective highlights how the topic shows up in this region and which cultural or policy factors shape the response."
+    ),
+    "",
+    "## Practical Actions (Checklist)",
+    "",
+    buildSection(
+      result.practical_actions_intro,
+      "Use the checklist below to move from insight to action with small, repeatable steps."
+    ),
+    "",
+    checklistBlock,
     "",
     "## FAQ",
     "",
     faqBlock,
     "",
-    "## Actionable checklist",
-    "",
-    checklistBlock,
-    "",
-    "## Sources / Further reading",
+    "## Sources",
     "",
     sourcesBlock
   ];
@@ -217,6 +262,8 @@ async function generatePost(candidate, sources, options = {}) {
     source_url: sources?.[0] || candidate.url,
     source_subreddit: candidate.subreddit || "",
     source_id: candidate.id || "",
+    generated_at: generatedAt,
+    source_digest: sourceDigest,
     body_markdown: body
   };
 }
