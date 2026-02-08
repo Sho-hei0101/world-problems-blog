@@ -76,6 +76,31 @@ function buildSources(list, originalUrl) {
     .join("\n");
 }
 
+function buildPlainSourceLinks(urls) {
+  const normalized = Array.isArray(urls)
+    ? urls
+        .map((url) => String(url || "").trim())
+        .filter(Boolean)
+    : [];
+  const deduped = Array.from(new Set(normalized));
+  return deduped.map((url) => `- ${url}`).join("\n");
+}
+
+function buildSourceFurtherReading({ sourcesBlock, originalUrls }) {
+  const sourceLinks = buildPlainSourceLinks(originalUrls);
+  const sections = [];
+  if (sourceLinks) {
+    sections.push("Sources", sourceLinks);
+  }
+  if (sourcesBlock) {
+    sections.push("Further reading", sourcesBlock);
+  }
+  sections.push(
+    "Summary based on publicly available sources. Please refer to original links for full context."
+  );
+  return sections.join("\n\n");
+}
+
 function fallbackFaq() {
   return [
     { q: "How long does it take to see progress?", a: "Most people see small improvements within a few weeks when they track one metric consistently." },
@@ -123,8 +148,63 @@ function buildSection(text, fallback) {
   return trimmed || fallback;
 }
 
-function buildRegionalHeading(lang, languageName) {
-  return `Regional Perspective (${languageName || lang})`;
+function buildTldrLines(lines, fallbackLines) {
+  const normalized = Array.isArray(lines)
+    ? lines.map((line) => String(line || "").trim()).filter(Boolean)
+    : [];
+  const selected = normalized.slice(0, 3);
+  if (selected.length === 3) {
+    return selected;
+  }
+  return fallbackLines.slice(0, 3);
+}
+
+function buildLearningPoints(points, fallbackPoints) {
+  const normalized = Array.isArray(points)
+    ? points.map((point) => String(point || "").trim()).filter(Boolean)
+    : [];
+  const selected = normalized.slice(0, 5);
+  if (selected.length >= 3) {
+    return selected;
+  }
+  return fallbackPoints.slice(0, 3);
+}
+
+function buildTodaysContext(lang, dateString, topic) {
+  const formattedDate = new Date(dateString).toLocaleDateString(lang, {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+  const templates = {
+    en: [
+      `As of ${formattedDate}, ${topic.toLowerCase()} continues to shape daily choices and public debate.`,
+      "The situation evolves quickly, so this snapshot reflects the most current context available at publication.",
+      "Use this framing to ground the actions below and check local updates for your region."
+    ],
+    es: [
+      `A fecha de ${formattedDate}, ${topic.toLowerCase()} sigue influyendo en decisiones diarias y debates públicos.`,
+      "La situación cambia con rapidez, así que este panorama refleja el contexto más reciente al publicarse.",
+      "Usa este marco para orientar las acciones y revisa actualizaciones locales en tu región."
+    ],
+    fr: [
+      `Au ${formattedDate}, ${topic.toLowerCase()} continue d'influencer les choix quotidiens et le débat public.`,
+      "La situation évolue rapidement, ce panorama reflète donc le contexte le plus récent au moment de la publication.",
+      "Servez-vous de ce cadre pour ancrer les actions ci-dessous et vérifiez les mises à jour locales."
+    ],
+    de: [
+      `Stand ${formattedDate} prägt ${topic.toLowerCase()} weiterhin Alltag und öffentliche Debatten.`,
+      "Die Lage verändert sich schnell, daher spiegelt diese Momentaufnahme den aktuellsten Kontext zum Veröffentlichungszeitpunkt wider.",
+      "Nutze diesen Rahmen für die folgenden Schritte und prüfe regionale Aktualisierungen."
+    ],
+    ja: [
+      `${formattedDate}時点で、${topic}は日常の選択や議論に影響を与え続けています。`,
+      "状況は変化しやすいため、このまとめは公開時点の最新の文脈を反映しています。",
+      "この前提を踏まえて行動し、地域の最新情報も確認してください。"
+    ]
+  };
+  const selected = templates[lang] || templates.en;
+  return selected.join(" ");
 }
 
 function buildSourceDigest(candidate) {
@@ -181,7 +261,7 @@ async function generatePost(candidate, sources, options = {}) {
     },
     {
       role: "user",
-      content: `Write a long-form blog post in ${languageName} (${lang}).\n\nRequirements:\n- SEO title (<= 70 chars)\n- Meta description (<= 160 chars)\n- 3–6 tags\n- Include a brief disclaimer that this is general information, not professional advice.\n- Provide 3–5 FAQ Q/A items.\n- Provide an actionable checklist (5–8 bullets).\n- Provide 2–3 reputable general sources with label + URL (no scraping).\n- Include these required sections (use ## headings, no H1):\n  - Problem Overview\n  - Why This Matters Globally\n  - Regional Perspective (${languageName})\n  - Practical Actions (Checklist)\n  - FAQ\n  - Sources\n- Target length: ${limits.min}-${limits.max} words for the full post.\n\nTopic:\nTitle: ${candidate.title}\nSummary: ${candidate.body || ""}\nSource: ${candidate.source_name || candidate.source || ""}\nURL: ${candidate.url || ""}\n\nReturn JSON with keys: seo_title, meta_description, tags, problem_overview, why_matters, regional_perspective, practical_actions_intro, faq (array of {q,a}), checklist (array), sources (array of {label,url}), disclaimer.`
+      content: `Write a long-form blog post in ${languageName} (${lang}).\n\nRequirements:\n- SEO title (<= 70 chars)\n- Meta description (<= 160 chars)\n- 3–6 tags\n- Provide 3 TL;DR lines (short, punchy).\n- Provide a "What you'll learn" list (3–5 bullets).\n- Include a brief disclaimer that this is general information, not professional advice.\n- Provide 3–5 FAQ Q/A items.\n- Provide an actionable checklist (5–8 bullets).\n- Provide 2–3 reputable general sources with label + URL (no scraping).\n- Include these required sections (use ## headings, no H1):\n  - Problem overview\n  - Why this matters globally\n  - Regional perspective (${languageName})\n  - Practical actions you can take\n  - FAQ\n  - Source & further reading\n- Target length: ${limits.min}-${limits.max} words for the full post.\n\nTopic:\nTitle: ${candidate.title}\nSummary: ${candidate.body || ""}\nSource: ${candidate.source_name || candidate.source || ""}\nURL: ${candidate.url || ""}\n\nReturn JSON with keys: seo_title, meta_description, tags, tldr (array), learning_points (array), problem_overview, why_matters, regional_perspective, practical_actions_intro, faq (array of {q,a}), checklist (array), sources (array of {label,url}), disclaimer.`
     }
   ];
 
@@ -198,41 +278,65 @@ async function generatePost(candidate, sources, options = {}) {
   const disclaimer = result.disclaimer
     ? String(result.disclaimer).trim()
     : "This article provides general information, not professional advice. Consult a qualified professional for guidance specific to your situation.";
+  const tldrLines = buildTldrLines(result.tldr, [
+    "A concise overview of the core issue and who it affects.",
+    "Why the topic matters now and how it connects globally.",
+    "Actionable steps you can take immediately."
+  ]);
+  const learningPoints = buildLearningPoints(result.learning_points, [
+    "How the problem shows up and who is most impacted.",
+    "The global ripple effects that make it urgent.",
+    "Practical actions you can take right away."
+  ]);
 
   const faqBlock = buildFaq(result.faq) || buildFaq(fallbackFaq());
   const checklistBlock = buildChecklist(result.checklist) || buildChecklist(fallbackChecklist());
   const sourcesBlock = buildSources(result.sources, sources?.[0] || candidate.url);
-  const regionalHeading = buildRegionalHeading(lang, languageName);
   const generatedAt = new Date().toISOString();
   const sourceDigest = buildSourceDigest(candidate);
+  const postDate = new Date().toISOString().slice(0, 10);
+  const todaysContext = buildTodaysContext(lang, postDate, title);
+  const originalSourceUrls = [
+    ...(Array.isArray(sources) ? sources : []),
+    candidate.url
+  ].filter(Boolean);
+  const sourceFurtherReading = buildSourceFurtherReading({
+    sourcesBlock,
+    originalUrls: originalSourceUrls
+  });
 
   const bodySections = [
     `# ${title}`,
     "",
+    `> **TL;DR**: ${tldrLines[0]}`,
+    `> ${tldrLines[1]}`,
+    `> ${tldrLines[2]}`,
+    "",
+    "What you’ll learn:",
+    "",
+    learningPoints.map((point) => `- ${point}`).join("\n"),
+    "",
     `> ${disclaimer}`,
     "",
-    "## Problem Overview",
+    "## Problem overview",
     "",
     buildSection(
       result.problem_overview,
       "This section summarizes the core issue, who it affects, and the immediate symptoms people notice."
     ),
     "",
-    "## Why This Matters Globally",
+    "## Why this matters globally",
     "",
     buildSection(
       result.why_matters,
       "Here we connect the local issue to broader social, economic, or environmental consequences that matter across regions."
     ),
     "",
-    `## ${regionalHeading}`,
+    "## Today’s context",
     "",
-    buildSection(
-      result.regional_perspective,
-      "This perspective highlights how the topic shows up in this region and which cultural or policy factors shape the response."
-    ),
+    todaysContext,
     "",
-    "## Practical Actions (Checklist)",
+    "## Practical actions you can take",
     "",
     buildSection(
       result.practical_actions_intro,
@@ -241,13 +345,20 @@ async function generatePost(candidate, sources, options = {}) {
     "",
     checklistBlock,
     "",
+    "## Regional perspective",
+    "",
+    buildSection(
+      result.regional_perspective,
+      "This perspective highlights how the topic shows up in this region and which cultural or policy factors shape the response."
+    ),
+    "",
     "## FAQ",
     "",
     faqBlock,
     "",
-    "## Sources",
+    "## Source & further reading",
     "",
-    sourcesBlock
+    sourceFurtherReading
   ];
 
   const body = addFillerIfNeeded(bodySections.join("\n"), limits.min, limits.max);
@@ -255,7 +366,7 @@ async function generatePost(candidate, sources, options = {}) {
   return {
     title,
     description,
-    date: new Date().toISOString().slice(0, 10),
+    date: postDate,
     tags: tags.length ? tags : ["world problems"],
     cta_primary_label: "Get the action checklist",
     cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
