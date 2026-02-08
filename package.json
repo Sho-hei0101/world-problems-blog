@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "new:post": "node scripts/new-post.js",
-    "world:run": "node scripts/world/run.js"
+    "world:run": "node scripts/world/run.js",
+    "world:dry": "WORLD_DRY_RUN=1 node scripts/world/run.js"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
