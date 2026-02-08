@@ -70,15 +70,22 @@ export default function PostPage({ params }) {
           </Link>
         ))}
       </div>
-      {(post.source_subreddit || post.source_url) && (
+      {(post.source_name || post.source_subreddit || post.source_url) && (
         <p style={{ marginTop: "8px", fontSize: "0.9rem", color: "#6b7280" }}>
           Source:{" "}
           {post.source_url ? (
             <a href={post.source_url} target="_blank" rel="noreferrer">
-              Reddit /r/{post.source_subreddit || "unknown"}
+              {post.source_name ||
+                (() => {
+                  try {
+                    return new URL(post.source_url).hostname.replace(/^www\./, "");
+                  } catch {
+                    return post.source_url;
+                  }
+                })()}
             </a>
           ) : (
-            `Reddit /r/${post.source_subreddit}`
+            post.source_name || post.source_subreddit
           )}
         </p>
       )}

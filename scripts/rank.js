@@ -7,25 +7,29 @@ const UNSAFE_PATTERNS = [
 ];
 
 const PRIORITY_KEYWORDS = [
-  "climate",
-  "water",
-  "drought",
-  "food",
-  "waste",
+  "cost of living",
+  "inflation",
+  "rent",
+  "mortgage",
+  "job market",
+  "wages",
+  "tax",
+  "energy prices",
   "energy",
   "housing",
-  "infrastructure",
-  "pollution",
-  "biodiversity",
-  "oceans",
-  "heat",
-  "flood",
+  "economy",
+  "policy",
+  "climate",
   "wildfire",
-  "renewable",
-  "inequality",
-  "migration",
+  "flood",
+  "earthquake",
+  "war",
+  "sanctions",
   "public health",
-  "air quality"
+  "healthcare",
+  "food",
+  "water",
+  "heat"
 ];
 
 const CLARITY_KEYWORDS = [
@@ -42,21 +46,18 @@ const CLARITY_KEYWORDS = [
   "cannot",
   "avoid",
   "reduce",
-  "improve"
+  "improve",
+  "guide",
+  "tips",
+  "steps",
+  "plan"
 ];
 
-const GENERAL_INTEREST_SUBREDDITS = new Set([
-  "askreddit",
-  "nostupidquestions",
-  "explainlikeimfive",
-  "personalfinance",
-  "relationships",
-  "careerquestions",
-  "legaladvice",
-  "travel",
-  "parenting",
-  "fitness",
-  "frugal"
+const SOURCE_BOOST = new Map([
+  ["google-news", 3],
+  ["wikipedia-current-events", 2],
+  ["hacker-news", 1],
+  ["stackexchange", 1]
 ]);
 
 function isUnsafe(text) {
@@ -79,9 +80,17 @@ function clarityScore(text) {
   return keywordHits + questionMark + lengthBonus;
 }
 
-function subredditScore(subreddit) {
-  if (!subreddit) return 0;
-  return GENERAL_INTEREST_SUBREDDITS.has(subreddit.toLowerCase()) ? 2 : 0;
+function topicTagScore(tags) {
+  if (!Array.isArray(tags)) return 0;
+  return tags.reduce((score, tag) => {
+    const lower = String(tag).toLowerCase();
+    return PRIORITY_KEYWORDS.some((keyword) => lower.includes(keyword)) ? score + 2 : score;
+  }, 0);
+}
+
+function sourceScore(source) {
+  if (!source) return 0;
+  return SOURCE_BOOST.get(source) || 0;
 }
 
 function recencyScore(dateValue) {
@@ -102,7 +111,8 @@ function recencyScore(dateValue) {
   return 0;
 }
 
-function rankCandidates(candidates, limit = 5) {
+function rankCandidates(candidates, limit = 5, options = {}) {
+  const locale = options.locale;
   const safe = candidates.filter((candidate) => {
     const text = `${candidate.title} ${candidate.body || ""}`;
     return !isUnsafe(text);
@@ -115,9 +125,11 @@ function rankCandidates(candidates, limit = 5) {
         ...candidate,
         score:
           keywordScore(text) +
-          recencyScore(candidate.created_utc || candidate.published) +
+          recencyScore(candidate.publishedAt || candidate.created_utc || candidate.published) +
           clarityScore(candidate.title) +
-          subredditScore(candidate.subreddit)
+          topicTagScore(candidate.topicTags) +
+          sourceScore(candidate.source) +
+          (locale && candidate.locale === locale ? 1 : 0)
       };
     })
     .sort((a, b) => b.score - a.score);

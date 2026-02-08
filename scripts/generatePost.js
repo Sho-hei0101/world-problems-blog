@@ -67,7 +67,7 @@ function buildSources(list, originalUrl) {
   }
 
   if (originalUrl && !deduped.has(originalUrl)) {
-    deduped.set(originalUrl, "Reddit thread");
+    deduped.set(originalUrl, "Original source");
   }
 
   return Array.from(deduped.entries())
@@ -181,7 +181,7 @@ async function generatePost(candidate, sources, options = {}) {
     },
     {
       role: "user",
-      content: `Write a long-form blog post in ${languageName} (${lang}).\n\nRequirements:\n- SEO title (<= 70 chars)\n- Meta description (<= 160 chars)\n- 3–6 tags\n- Include a brief disclaimer that this is general information, not professional advice.\n- Provide 3–5 FAQ Q/A items.\n- Provide an actionable checklist (5–8 bullets).\n- Provide 2–3 reputable general sources with label + URL (no scraping).\n- Include these required sections (use ## headings, no H1):\n  - Problem Overview\n  - Why This Matters Globally\n  - Regional Perspective (${languageName})\n  - Practical Actions (Checklist)\n  - FAQ\n  - Sources\n- Target length: ${limits.min}-${limits.max} words for the full post.\n\nTopic (from Reddit):\nTitle: ${candidate.title}\nBody: ${candidate.body || ""}\nSubreddit: ${candidate.subreddit || ""}\nURL: ${candidate.url || ""}\n\nReturn JSON with keys: seo_title, meta_description, tags, problem_overview, why_matters, regional_perspective, practical_actions_intro, faq (array of {q,a}), checklist (array), sources (array of {label,url}), disclaimer.`
+      content: `Write a long-form blog post in ${languageName} (${lang}).\n\nRequirements:\n- SEO title (<= 70 chars)\n- Meta description (<= 160 chars)\n- 3–6 tags\n- Include a brief disclaimer that this is general information, not professional advice.\n- Provide 3–5 FAQ Q/A items.\n- Provide an actionable checklist (5–8 bullets).\n- Provide 2–3 reputable general sources with label + URL (no scraping).\n- Include these required sections (use ## headings, no H1):\n  - Problem Overview\n  - Why This Matters Globally\n  - Regional Perspective (${languageName})\n  - Practical Actions (Checklist)\n  - FAQ\n  - Sources\n- Target length: ${limits.min}-${limits.max} words for the full post.\n\nTopic:\nTitle: ${candidate.title}\nSummary: ${candidate.body || ""}\nSource: ${candidate.source_name || candidate.source || ""}\nURL: ${candidate.url || ""}\n\nReturn JSON with keys: seo_title, meta_description, tags, problem_overview, why_matters, regional_perspective, practical_actions_intro, faq (array of {q,a}), checklist (array), sources (array of {label,url}), disclaimer.`
     }
   ];
 
@@ -261,6 +261,7 @@ async function generatePost(candidate, sources, options = {}) {
     cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
     source_url: sources?.[0] || candidate.url,
     source_subreddit: candidate.subreddit || "",
+    source_name: candidate.source_name || candidate.source || "",
     source_id: candidate.id || "",
     generated_at: generatedAt,
     source_digest: sourceDigest,

@@ -85,6 +85,7 @@ function publishPost(post, options = {}) {
     ),
     `source_url: ${yamlString(post.source_url || "")}`,
     `source_subreddit: ${yamlString(post.source_subreddit || "")}`,
+    `source_name: ${yamlString(post.source_name || "")}`,
     `source_id: ${yamlString(post.source_id || "")}`,
     `generated_at: ${yamlString(post.generated_at || new Date().toISOString())}`,
     `source_digest: ${yamlString(post.source_digest || "")}`,

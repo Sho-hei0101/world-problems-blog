@@ -1,17 +1,23 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { fetchRedditPosts } = require("../sources/reddit.js");
 const { rankCandidates } = require("../rank.js");
 const { generatePost } = require("../generatePost.js");
 const { publishPost } = require("../publish.js");
-const { DEFAULT_LOCALES, getSubredditsForLocale } = require("../sources/redditConfig.js");
+const { createRequestManager } = require("../sources/requestManager.js");
+const { fetchGoogleNewsCandidates } = require("../sources/googleNews.js");
+const { fetchWikipediaCandidates } = require("../sources/wikipedia.js");
+const { fetchHackerNewsCandidates } = require("../sources/hackerNews.js");
+const { fetchStackExchangeCandidates } = require("../sources/stackexchange.js");
 
+const DEFAULT_LOCALES = ["en", "es", "fr", "de", "ja"];
 const MAX_POSTS_PER_LOCALE = Number.parseInt(
   process.env.WORLD_MAX_POSTS_PER_LOCALE || "2",
   10
 );
-const CACHE_PATH = path.join(process.cwd(), ".cache", "reddit.json");
+const REQUEST_LIMIT = Number.parseInt(process.env.WORLD_REQUEST_LIMIT || "40", 10);
+const CACHE_PATH = path.join(process.cwd(), ".cache", "world.json");
+const DRY_RUN = process.env.WORLD_DRY_RUN === "1";
 
 function ensureCacheDir() {
   fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
@@ -27,7 +33,7 @@ function loadCache() {
     const parsed = JSON.parse(raw);
     return parsed && Array.isArray(parsed.seen) ? parsed : { seen: [] };
   } catch (error) {
-    console.warn("Failed to read reddit cache, resetting.", error);
+    console.warn("Failed to read world cache, resetting.", error);
     return { seen: [] };
   }
 }
@@ -41,24 +47,32 @@ function resolveLocalesToGenerate() {
   const envLocales = process.env.WORLD_LOCALES
     ? process.env.WORLD_LOCALES.split(",").map((locale) => locale.trim())
     : [];
-  const requiredLocales = DEFAULT_LOCALES;
-  const uniqueLocales = Array.from(
-    new Set([...requiredLocales, ...envLocales].filter(Boolean))
-  );
+  const uniqueLocales = Array.from(new Set([...DEFAULT_LOCALES, ...envLocales].filter(Boolean)));
   return uniqueLocales.length ? uniqueLocales : DEFAULT_LOCALES;
+}
+
+function canonicalizeUrl(rawUrl) {
+  if (!rawUrl) return "";
+  try {
+    const url = new URL(rawUrl);
+    const params = new URLSearchParams(url.search);
+    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid"].forEach(
+      (key) => params.delete(key)
+    );
+    url.search = params.toString();
+    url.hash = "";
+    const normalized = url.toString().replace(/\/$/, "");
+    return normalized;
+  } catch {
+    return rawUrl;
+  }
 }
 
 function classifyCandidate(candidate) {
   if (!candidate.title || candidate.title.length < 12) {
     return { ok: false, reason: "title_too_short" };
   }
-  if (candidate.over_18) {
-    return { ok: false, reason: "over_18" };
-  }
-  if (candidate.spoiler) {
-    return { ok: false, reason: "spoiler" };
-  }
-  const text = `${candidate.title} ${candidate.body || ""}`.trim();
+  const text = `${candidate.title} ${candidate.body || candidate.summary || ""}`.trim();
   if (isSpamOrUnsafeText(text)) {
     return { ok: false, reason: "spam_or_pii" };
   }
@@ -121,6 +135,7 @@ function buildHeartbeatPost({ locale, reason, stats }) {
     cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
     source_url: "",
     source_subreddit: "",
+    source_name: "",
     source_id: `heartbeat-${locale}-${date}`,
     generated_at: generatedAt,
     source_digest: sourceDigest,
@@ -133,17 +148,78 @@ function logLocaleStats(stats) {
     .map(([reason, count]) => `${reason}=${count}`)
     .join(", ");
   const fetchSummary = stats.fetchSummary
-    .map((item) => `${item.sort}:${item.items} items`)
+    .map((item) => `${item.source}:${item.items}`)
+    .join(" | ");
+  const selectionSummary = stats.selectionSummary
+    .map((item) => `${item.source}:${item.selected}`)
     .join(" | ");
   console.log(
     `Locale ${stats.locale}: fetched=${stats.items} safe=${stats.safeCandidates} cached_skips=${stats.cached} selected=${stats.selected} created=${stats.created}`
   );
   console.log(`Locale ${stats.locale}: unsafe_breakdown=${reasons || "none"}`);
   console.log(`Locale ${stats.locale}: fetch_summary=${fetchSummary || "none"}`);
+  console.log(`Locale ${stats.locale}: selection_summary=${selectionSummary || "none"}`);
+}
+
+function tallyBySource(items) {
+  const counts = new Map();
+  items.forEach((item) => {
+    const key = item.source || "unknown";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([source, count]) => ({
+    source,
+    items: count
+  }));
+}
+
+function tallySelections(items) {
+  const counts = new Map();
+  items.forEach((item) => {
+    const key = item.source || "unknown";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([source, selected]) => ({
+    source,
+    selected
+  }));
+}
+
+async function gatherCandidates({ locale, manager }) {
+  const candidates = [];
+  const fetchSummary = [];
+
+  const googleResult = await fetchGoogleNewsCandidates({ locale, manager });
+  if (googleResult.items.length) {
+    candidates.push(...googleResult.items);
+  }
+  fetchSummary.push({ source: "google-news", items: googleResult.items.length });
+
+  if (locale === "en") {
+    const wikiResult = await fetchWikipediaCandidates({ locale, manager });
+    if (wikiResult.items.length) {
+      candidates.push(...wikiResult.items);
+    }
+    fetchSummary.push({ source: "wikipedia-current-events", items: wikiResult.items.length });
+
+    const hnResult = await fetchHackerNewsCandidates({ manager, maxItems: 4 });
+    if (hnResult.items.length) {
+      candidates.push(...hnResult.items);
+    }
+    fetchSummary.push({ source: "hacker-news", items: hnResult.items.length });
+
+    const stackResult = await fetchStackExchangeCandidates({ manager });
+    if (stackResult.items.length) {
+      candidates.push(...stackResult.items);
+    }
+    fetchSummary.push({ source: "stackexchange", items: stackResult.items.length });
+  }
+
+  return { candidates, fetchSummary };
 }
 
 async function run() {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!DRY_RUN && !process.env.OPENAI_API_KEY) {
     console.error(
       "Missing OPENAI_API_KEY. Add it in GitHub repo Settings → Secrets and variables → Actions."
     );
@@ -160,37 +236,29 @@ async function run() {
   const createdFiles = [];
   const localeStats = [];
 
-  for (const locale of locales) {
-    const subreddits = getSubredditsForLocale(locale);
-    const fetchSummary = [];
-    const uniqueItems = new Map();
-    let subredditsFetched = 0;
+  const manager = createRequestManager({ requestLimit: REQUEST_LIMIT });
+  const localeCandidates = new Map();
 
-    for (const sort of ["hot", "new", "top"]) {
-      const { items, subredditsFetched: fetchedCount } = await fetchRedditPosts({
-        subreddits,
-        localeHint: locale,
-        sort
-      });
-      subredditsFetched += fetchedCount;
-      fetchSummary.push({ sort, items: items.length });
-      for (const item of items) {
-        const dedupeKey = item.source_digest || item.id;
-        if (!uniqueItems.has(dedupeKey)) {
-          uniqueItems.set(dedupeKey, item);
-        }
+  for (const locale of locales) {
+    const { candidates, fetchSummary } = await gatherCandidates({ locale, manager });
+    const deduped = new Map();
+    for (const item of candidates) {
+      const canonicalUrl = canonicalizeUrl(item.url);
+      const dedupeKey = canonicalUrl || item.id;
+      if (!deduped.has(dedupeKey)) {
+        deduped.set(dedupeKey, { ...item, url: canonicalUrl || item.url });
       }
     }
+    localeCandidates.set(locale, { items: Array.from(deduped.values()), fetchSummary });
+  }
 
-    const items = Array.from(uniqueItems.values());
-    console.log(
-      `Fetched ${subredditsFetched} subreddit(s) for ${locale} with ${items.length} unique candidate items.`
-    );
+  const englishPool = localeCandidates.get("en")?.items || [];
+
+  for (const locale of locales) {
+    const { items, fetchSummary } = localeCandidates.get(locale) || { items: [], fetchSummary: [] };
 
     const unsafeCounts = {
       title_too_short: 0,
-      over_18: 0,
-      spoiler: 0,
       spam_or_pii: 0
     };
     let cachedCount = 0;
@@ -212,19 +280,33 @@ async function run() {
       safeCandidates.push(item);
     }
 
-    const ranked = rankCandidates(safeCandidates, MAX_POSTS_PER_LOCALE + 3);
+    let ranked = rankCandidates(safeCandidates, MAX_POSTS_PER_LOCALE + 3, {
+      locale
+    });
+
+    if (locale !== "en" && ranked.length === 0 && englishPool.length > 0) {
+      const fallback = rankCandidates(englishPool, MAX_POSTS_PER_LOCALE, {
+        locale: "en"
+      }).map((candidate) => ({
+        ...candidate,
+        locale
+      }));
+      ranked = fallback;
+    }
+
     const selected = ranked.slice(0, MAX_POSTS_PER_LOCALE);
+    const selectionSummary = tallySelections(selected);
 
     const stats = {
       locale,
-      subredditsFetched,
       items: items.length,
       safeCandidates: safeCandidates.length,
       cached: cachedCount,
       selected: selected.length,
       created: 0,
       unsafeCounts,
-      fetchSummary
+      fetchSummary: fetchSummary.length ? fetchSummary : tallyBySource(items),
+      selectionSummary
     };
     localeStats.push(stats);
 
@@ -239,6 +321,16 @@ async function run() {
         .map((item) => item.title)
         .join(" | ")}`
     );
+
+    if (DRY_RUN) {
+      selected.forEach((candidate) => {
+        console.log(
+          `[dry-run] ${locale} -> ${candidate.title} (${candidate.source_name || candidate.source})`
+        );
+      });
+      logLocaleStats(stats);
+      continue;
+    }
 
     for (const candidate of selected) {
       try {
@@ -261,18 +353,20 @@ async function run() {
     logLocaleStats(stats);
   }
 
-  cache.seen = cache.seen.slice(-300);
-  saveCache(cache);
+  if (!DRY_RUN) {
+    cache.seen = cache.seen.slice(-300);
+    saveCache(cache);
+  }
 
   const totalCandidates = localeStats.reduce((sum, item) => sum + item.items, 0);
   const totalSafe = localeStats.reduce((sum, item) => sum + item.safeCandidates, 0);
   const totalCached = localeStats.reduce((sum, item) => sum + item.cached, 0);
   const totalSelected = localeStats.reduce((sum, item) => sum + item.selected, 0);
 
-  if (createdFiles.length === 0) {
+  if (!DRY_RUN && createdFiles.length === 0) {
     const reason =
       totalCandidates === 0
-        ? "No Reddit candidates fetched."
+        ? "No candidates fetched."
         : totalSafe === 0
           ? "All candidates filtered out by safety rules or cache."
           : "Post generation/publish failed.";
@@ -304,6 +398,7 @@ async function run() {
   console.log(
     `Pipeline summary: candidates=${totalCandidates} safe=${totalSafe} selected=${totalSelected} created=${createdFiles.length}`
   );
+  console.log(`Request usage: ${manager.getRequestCount()}/${manager.getRequestLimit()}`);
   console.log("Generated markdown paths:");
   if (createdFiles.length === 0) {
     console.log("- (none)");
