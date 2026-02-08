@@ -103,8 +103,11 @@ jobs:
             exit 1
           fi
 
-          if [[ "${author}" != "github-actions[bot]" && "${author}" != "github-actions" && "${author}" != "${GITHUB_ACTOR}" ]]; then
-            echo "Refusing to auto-merge: PR author is not github-actions[bot], github-actions, or workflow actor."
+          if [[ "${author}" != "github-actions[bot]" \
+             && "${author}" != "github-actions" \
+             && "${author}" != "app/github-actions" \
+             && "${author}" != "${GITHUB_ACTOR}" ]]; then
+            echo "Refusing to auto-merge: unsupported PR author: ${author}"
             exit 1
           fi
 
