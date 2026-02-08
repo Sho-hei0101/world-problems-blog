@@ -63,6 +63,7 @@ jobs:
           delete-branch: true
           add-paths: |
             content/posts/**
+            content/*/posts/**
       - name: No changes detected
         if: steps.create_pr.outputs.pull-request-number == ''
         run: |
@@ -103,6 +104,6 @@ jobs:
             exit 1
           fi
 
-          gh pr merge "${pr_number}" --squash --auto --delete-branch
+          gh pr merge "${pr_url}" --squash --auto --delete-branch
           gh pr view "${pr_number}" --json mergeStateStatus,autoMergeRequest,mergedAt,url --jq \
             '"Auto-merge status: \(.mergeStateStatus) | Auto-merge enabled: \(.autoMergeRequest != null) | Merged at: \(.mergedAt) | URL: \(.url)"'
