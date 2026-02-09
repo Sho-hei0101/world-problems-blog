@@ -132,7 +132,7 @@ function buildHeartbeatPost({ locale, reason, stats }) {
     date,
     tags: ["automation", "pipeline status"],
     cta_primary_label: "View repository",
-    cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
+    cta_primary_url: "https://worldproblems.blog",
     source_url: "",
     source_subreddit: "",
     source_name: "",
@@ -221,7 +221,7 @@ async function gatherCandidates({ locale, manager }) {
 async function run() {
   if (!DRY_RUN && !process.env.OPENAI_API_KEY) {
     console.error(
-      "Missing OPENAI_API_KEY. Add it in GitHub repo Settings → Secrets and variables → Actions."
+      "Missing OPENAI_API_KEY. Add it in your CI secrets configuration."
     );
     process.exit(1);
   }

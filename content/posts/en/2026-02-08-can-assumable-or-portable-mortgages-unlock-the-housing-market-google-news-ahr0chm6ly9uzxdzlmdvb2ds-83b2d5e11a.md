@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:34:33.302Z"
 source_digest: "57a0b52af38ab5c1b3e67550ff4597040ea07aa31673fe6019969e2253a12f7f"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Can Assumable or Portable Mortgages Unlock the Housing Market?

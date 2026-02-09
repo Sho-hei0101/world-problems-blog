@@ -12,7 +12,6 @@ tags:
 source_url: "https://www.reddit.com/r/frugal/comments/1c9xk8z/cut_food_waste_at_home/"
 source_subreddit: "frugal"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # How can we cut food waste at home without spending more?
@@ -89,4 +88,3 @@ This problem feels overwhelming because it blends habits, systems, and limited r
 
 If you want to move faster, use the checklist below as your baseline and adjust it weekly. Small, consistent improvements compound into meaningful change.
 
-**Call to action:** Get the action checklist → https://github.com/Sho-hei0101/world-problems-blog

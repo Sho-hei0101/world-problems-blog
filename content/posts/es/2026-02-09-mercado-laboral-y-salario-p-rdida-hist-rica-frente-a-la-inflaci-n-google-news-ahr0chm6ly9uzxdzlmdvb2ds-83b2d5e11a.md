@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:14:31.694Z"
 source_digest: "00c16cab3bc6eda2bfccba19897c24e1441b4e4bff68710f6d62e9c736969743"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Mercado laboral y salario: Pérdida histórica frente a la inflación

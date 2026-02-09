@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:14:52.645Z"
 source_digest: "88315acc6b33ef53a61ad7f96715f1e9ce6ae17f913f667701e6ea485a9d4157"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # La part du logement et l'indice des prix : une tendance croissante

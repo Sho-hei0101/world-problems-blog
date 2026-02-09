@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:15:13.641Z"
 source_digest: "afbcd93bf4216417cfe10a483fde356c5300d614a8314dd5df632cd95c9851d9"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Vietnam: Ein Paradies für Rentner weltweit

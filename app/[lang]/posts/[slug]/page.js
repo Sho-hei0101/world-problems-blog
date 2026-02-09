@@ -218,11 +218,19 @@ export default function PostPage({ params }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       )}
-      <Link className="cta" href={`/${lang}/checklist/${slug}`}>
-        {post.cta_primary_label || "Get the action checklist"}
-      </Link>
+      <div className="cta-stack">
+        <Link className="cta" href={`/${lang}/checklist/${slug}`}>
+          Get the action checklist
+        </Link>
+        <Link
+          className="cta-secondary"
+          href={relatedPosts[0] ? buildPostUrl(lang, relatedPosts[0].slug) : `/${lang}/`}
+        >
+          Read the next related post
+        </Link>
+      </div>
       {relatedPosts.length > 0 && (
-        <section className="related-posts">
+        <section className="related-posts" id="related-posts">
           <h2>Related posts</h2>
           <ul>
             {relatedPosts.map((related) => (

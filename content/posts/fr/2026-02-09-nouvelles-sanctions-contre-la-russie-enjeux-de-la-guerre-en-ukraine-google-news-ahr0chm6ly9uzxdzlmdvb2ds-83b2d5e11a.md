@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:15:03.946Z"
 source_digest: "d1e1f119eb28df9740bcb6b799908584829eaa144e66ce666e68531dffe26142"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Nouvelles sanctions contre la Russie : enjeux de la guerre en Ukraine

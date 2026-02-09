@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:14:42.604Z"
 source_digest: "36ecc21115f25305d1032a343b096e859574b4039994b695131bc3b66b4bb868"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Impuestos de guerra: ¿una solución fiscal efectiva?

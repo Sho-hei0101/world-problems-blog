@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:15:22.459Z"
 source_digest: "cf0cc5d66ec52923d6188425737cc1dda24174cf23fab243937ce623c4a2aaa9"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Postbank-Studie: Lebenshaltungskosten belasten Verbraucherstimmung

@@ -11,7 +11,7 @@ Minimal, Vercel-friendly multilingual blog built with Next.js App Router.
 
 ## Required secret
 
-Set `OPENAI_API_KEY` in **GitHub repo Settings → Secrets and variables → Actions**. The generator will exit early if it is missing.
+Set `OPENAI_API_KEY` in your repository secrets for CI. The generator will exit early if it is missing.
 
 ## Running locally
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SUPPORTED_LANGUAGES } from "../../lib/posts";
+import NewsletterSignup from "../components/NewsletterSignup";
 
 export const dynamicParams = false;
 
@@ -33,7 +34,7 @@ export default function LangLayout({ children, params }) {
       </header>
       {children}
       <footer>
-        Built with Next.js App Router. Content is stored locally in markdown.
+        <NewsletterSignup />
       </footer>
     </main>
   );

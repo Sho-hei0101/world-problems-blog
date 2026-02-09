@@ -369,7 +369,7 @@ async function generatePost(candidate, sources, options = {}) {
     date: postDate,
     tags: tags.length ? tags : ["world problems"],
     cta_primary_label: "Get the action checklist",
-    cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog",
+    cta_primary_url: "https://worldproblems.blog",
     source_url: sources?.[0] || candidate.url,
     source_subreddit: candidate.subreddit || "",
     source_name: candidate.source_name || candidate.source || "",
