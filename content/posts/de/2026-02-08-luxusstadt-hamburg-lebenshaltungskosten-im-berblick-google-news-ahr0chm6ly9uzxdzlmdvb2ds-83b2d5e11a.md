@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:35:18.364Z"
 source_digest: "9c0744b4d64642240f955414cdec4c4fca55afb038ea8bf312a3526ef2df63dd"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Luxusstadt Hamburg: Lebenshaltungskosten im Überblick

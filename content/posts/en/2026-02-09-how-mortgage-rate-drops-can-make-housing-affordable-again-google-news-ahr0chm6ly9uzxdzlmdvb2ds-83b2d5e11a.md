@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:14:21.437Z"
 source_digest: "d31a6a6fe8e1f316069ea092b66394cddc102864077b949b1f42b034e4278295"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # How Mortgage Rate Drops Can Make Housing Affordable Again

@@ -12,7 +12,6 @@ tags:
 source_url: "https://www.reddit.com/r/personalfinance/comments/1c9xk2u/how_do_i_budget_for_irregular_income/"
 source_subreddit: "personalfinance"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # How do I budget for irregular income without missing bills?
@@ -89,4 +88,3 @@ This problem feels overwhelming because it blends habits, systems, and limited r
 
 If you want to move faster, use the checklist below as your baseline and adjust it weekly. Small, consistent improvements compound into meaningful change.
 
-**Call to action:** Get the action checklist → https://github.com/Sho-hei0101/world-problems-blog

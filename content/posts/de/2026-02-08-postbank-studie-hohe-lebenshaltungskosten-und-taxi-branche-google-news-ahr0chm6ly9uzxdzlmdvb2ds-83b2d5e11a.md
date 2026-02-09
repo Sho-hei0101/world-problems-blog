@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:35:28.654Z"
 source_digest: "572f850f069cebf089391d5b0a0d4c509b74e519fd85a62ef27c9fb420777f3d"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Postbank-Studie: Hohe Lebenshaltungskosten und Taxi-Branche

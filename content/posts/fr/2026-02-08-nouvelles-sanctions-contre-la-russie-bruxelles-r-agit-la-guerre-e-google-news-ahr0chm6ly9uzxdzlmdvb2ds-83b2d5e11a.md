@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:35:08.200Z"
 source_digest: "5d3b270f05f788e386f293e3100562b22dde62f8dc3c1d51961d1d77c8069fc8"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Nouvelles sanctions contre la Russie : Bruxelles réagit à la guerre e…

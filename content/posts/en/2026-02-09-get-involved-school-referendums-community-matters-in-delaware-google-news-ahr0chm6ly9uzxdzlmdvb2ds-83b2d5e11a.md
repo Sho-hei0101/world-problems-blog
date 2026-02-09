@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-09T04:14:11.981Z"
 source_digest: "f27c233cacfbf983b048f916ffc944e626820a2d1e3745aa339b94e46c6ee8a5"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Get Involved: School Referendums & Community Matters in Delaware

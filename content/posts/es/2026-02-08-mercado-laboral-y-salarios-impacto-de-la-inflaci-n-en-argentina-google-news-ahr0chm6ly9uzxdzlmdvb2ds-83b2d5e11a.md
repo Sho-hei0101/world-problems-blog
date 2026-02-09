@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:34:49.328Z"
 source_digest: "18470432c7a39e57d6acdf36ff750d4146f80f89c82c26ca9b399711c47a4c30"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Mercado laboral y salarios: Impacto de la inflación en Argentina

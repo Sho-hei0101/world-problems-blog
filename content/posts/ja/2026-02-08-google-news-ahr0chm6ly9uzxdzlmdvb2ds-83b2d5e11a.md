@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:35:38.784Z"
 source_digest: "0743e4cb975f53372f851303e11820719be87319a9630187572126708f3136cf"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # デラウェア州の地域問題に参加しよう：学校、病院、エネルギー価格

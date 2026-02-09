@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:34:58.524Z"
 source_digest: "720ae021ce2e26d402ddda81e73ce0aefdcfdc1c76b352ad9b08a738ef2b0a04"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # La part du logement dans l'indice des prix : enjeux et perspectives

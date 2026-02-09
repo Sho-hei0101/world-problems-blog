@@ -15,7 +15,6 @@ source_id: "google-news-aHR0cHM6Ly9uZXdzLmdvb2ds"
 generated_at: "2026-02-08T09:34:41.789Z"
 source_digest: "a562b6d629f88322fe3a1aaa2ee0543239bffc1ce2a86e189ae54679b529e7e8"
 cta_primary_label: "Get the action checklist"
-cta_primary_url: "https://github.com/Sho-hei0101/world-problems-blog"
 ---
 
 # Ciudades con el costo de vida más alto en Colombia en enero 2026
