@@ -73,3 +73,16 @@ Markdown posts live in `content/posts/{lang}/*.md` with frontmatter fields:
 - source_subreddit
 - cta_primary_label
 - cta_primary_url
+- actionChecklist (optional array of sections with `title` and `items`)
+
+## OG images
+
+Post pages point to `/api/og?title=...&lang=...&tags=...` for automatic Open Graph images. The
+endpoint uses Next.js `ImageResponse` (built on `@vercel/og`) to render a lightweight image with the
+title, site name, language, and tags. Update the look in `app/api/og/route.js`.
+
+## Action checklist pages
+
+Each post links to an internal checklist page at `/{lang}/checklist/{slug}`. If a post does not
+include an `actionChecklist` frontmatter section, the site derives one from the “Practical actions”
+section or the first bullet list in the markdown.
