@@ -9,7 +9,13 @@ import {
   getTranslationsForSlug,
   getRelatedPosts
 } from "../../../../lib/posts";
-import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE, AUTHOR_NAME, buildOgImageUrl } from "../../../../lib/site";
+import {
+  SITE_NAME,
+  DEFAULT_OG_IMAGE,
+  AUTHOR_NAME,
+  buildCanonicalUrl,
+  buildOgImageUrl
+} from "../../../../lib/site";
 
 function extractFaqEntries(markdown = "") {
   const lines = markdown.split(/\r?\n/);
@@ -82,7 +88,7 @@ export function generateMetadata({ params }) {
 
   const translations = getTranslationsForSlug(slug);
   const languages = Object.keys(translations).reduce((acc, locale) => {
-    acc[locale] = `${SITE_URL}${buildPostUrl(locale, slug)}`;
+    acc[locale] = buildCanonicalUrl(buildPostUrl(locale, slug));
     return acc;
   }, {});
   const ogImage =
@@ -92,13 +98,13 @@ export function generateMetadata({ params }) {
     title: post.title,
     description: post.description,
     alternates: {
-      canonical: `${SITE_URL}${buildPostUrl(lang, slug)}`,
+      canonical: buildPostUrl(lang, slug),
       languages
     },
     openGraph: {
       title: post.title,
       description: post.description,
-      url: `${SITE_URL}${buildPostUrl(lang, slug)}`,
+      url: buildCanonicalUrl(buildPostUrl(lang, slug)),
       type: "article",
       locale: lang,
       siteName: SITE_NAME,
@@ -152,10 +158,10 @@ export default function PostPage({ params }) {
     },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `${SITE_URL}${buildPostUrl(lang, slug)}`
+      "@id": buildCanonicalUrl(buildPostUrl(lang, slug))
     },
     image: [ogImage || DEFAULT_OG_IMAGE],
-    url: `${SITE_URL}${buildPostUrl(lang, slug)}`,
+    url: buildCanonicalUrl(buildPostUrl(lang, slug)),
     inLanguage: lang,
     keywords: post.tags || []
   };
