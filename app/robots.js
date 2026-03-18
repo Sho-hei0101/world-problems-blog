@@ -1,4 +1,4 @@
-import { SITE_URL } from "../lib/site";
+import { buildCanonicalUrl } from "../lib/site";
 
 export default function robots() {
   return {
@@ -6,6 +6,6 @@ export default function robots() {
       userAgent: "*",
       allow: "/"
     },
-    sitemap: `${SITE_URL}/sitemap.xml`
+    sitemap: buildCanonicalUrl("/sitemap.xml")
   };
 }

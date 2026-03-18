@@ -5,6 +5,36 @@ import {
   buildPostUrl,
   getPostsByTag
 } from "../../../../lib/posts";
+import { SITE_NAME, buildCanonicalUrl } from "../../../../lib/site";
+
+export function generateMetadata({ params }) {
+  const { lang, tag } = params;
+
+  if (!SUPPORTED_LANGUAGES.includes(lang)) {
+    return {};
+  }
+
+  const decodedTag = decodeURIComponent(tag);
+  const pathname = `/${lang}/tags/${encodeURIComponent(decodedTag)}`;
+  const title = `${decodedTag} | ${SITE_NAME}`;
+  const description = `Posts tagged ${decodedTag} on ${SITE_NAME}.`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: pathname
+    },
+    openGraph: {
+      title,
+      description,
+      url: buildCanonicalUrl(pathname),
+      type: "website",
+      siteName: SITE_NAME,
+      locale: lang
+    }
+  };
+}
 
 export default function TagPage({ params }) {
   const { lang, tag } = params;

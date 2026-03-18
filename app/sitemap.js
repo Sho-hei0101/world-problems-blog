@@ -5,18 +5,18 @@ import {
   buildTagUrl,
   getTranslationsForSlug
 } from "../lib/posts";
-import { SITE_URL } from "../lib/site";
+import { buildCanonicalUrl } from "../lib/site";
 
 export default function sitemap() {
   const entries = [];
 
   SUPPORTED_LANGUAGES.forEach((lang) => {
     entries.push({
-      url: `${SITE_URL}/${lang}`,
+      url: buildCanonicalUrl(`/${lang}`),
       lastModified: new Date(),
       alternates: {
         languages: SUPPORTED_LANGUAGES.reduce((acc, locale) => {
-          acc[locale] = `${SITE_URL}/${locale}`;
+          acc[locale] = buildCanonicalUrl(`/${locale}`);
           return acc;
         }, {})
       }
@@ -26,22 +26,22 @@ export default function sitemap() {
     posts.forEach((post) => {
       const translations = getTranslationsForSlug(post.slug);
       const languages = Object.keys(translations).reduce((acc, locale) => {
-        acc[locale] = `${SITE_URL}${buildPostUrl(locale, post.slug)}`;
+        acc[locale] = buildCanonicalUrl(buildPostUrl(locale, post.slug));
         return acc;
       }, {});
       entries.push({
-        url: `${SITE_URL}${buildPostUrl(lang, post.slug)}`,
+        url: buildCanonicalUrl(buildPostUrl(lang, post.slug)),
         lastModified: post.date,
         alternates: {
           languages
         }
       });
       entries.push({
-        url: `${SITE_URL}/${lang}/checklist/${post.slug}`,
+        url: buildCanonicalUrl(`/${lang}/checklist/${post.slug}`),
         lastModified: post.date,
         alternates: {
           languages: Object.keys(translations).reduce((acc, locale) => {
-            acc[locale] = `${SITE_URL}/${locale}/checklist/${post.slug}`;
+            acc[locale] = buildCanonicalUrl(`/${locale}/checklist/${post.slug}`);
             return acc;
           }, {})
         }
@@ -49,11 +49,11 @@ export default function sitemap() {
 
       post.tags?.forEach((tag) => {
         entries.push({
-          url: `${SITE_URL}${buildTagUrl(lang, tag)}`,
+          url: buildCanonicalUrl(buildTagUrl(lang, tag)),
           lastModified: post.date,
           alternates: {
             languages: {
-              [lang]: `${SITE_URL}${buildTagUrl(lang, tag)}`
+              [lang]: buildCanonicalUrl(buildTagUrl(lang, tag))
             }
           }
         });
