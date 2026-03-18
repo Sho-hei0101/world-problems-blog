@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SUPPORTED_LANGUAGES, getPostBySlug, getPostSlugs, buildPostUrl } from "../../../../lib/posts";
-import { SITE_URL, SITE_NAME } from "../../../../lib/site";
+import { SITE_NAME, buildCanonicalUrl } from "../../../../lib/site";
 
 export function generateStaticParams() {
   return SUPPORTED_LANGUAGES.flatMap((lang) => {
@@ -21,12 +21,12 @@ export function generateMetadata({ params }) {
     title: `${post.title} Action Checklist`,
     description: post.description,
     alternates: {
-      canonical: `${SITE_URL}/${lang}/checklist/${slug}`
+      canonical: `/${lang}/checklist/${slug}`
     },
     openGraph: {
       title: `${post.title} Action Checklist`,
       description: post.description,
-      url: `${SITE_URL}/${lang}/checklist/${slug}`,
+      url: buildCanonicalUrl(`/${lang}/checklist/${slug}`),
       type: "article",
       siteName: SITE_NAME
     }
