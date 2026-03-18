@@ -1,6 +1,31 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SUPPORTED_LANGUAGES, getAllPosts, buildPostUrl, buildTagUrl } from "../../lib/posts";
+import { SITE_NAME, buildCanonicalUrl } from "../../lib/site";
+
+export function generateMetadata({ params }) {
+  const { lang } = params;
+
+  if (!SUPPORTED_LANGUAGES.includes(lang)) {
+    return {};
+  }
+
+  const pathname = `/${lang}`;
+
+  return {
+    alternates: {
+      canonical: pathname
+    },
+    openGraph: {
+      title: SITE_NAME,
+      description: "A multilingual blog about world challenges and solutions.",
+      url: buildCanonicalUrl(pathname),
+      type: "website",
+      siteName: SITE_NAME,
+      locale: lang
+    }
+  };
+}
 
 export default function LangIndex({ params }) {
   const { lang } = params;
