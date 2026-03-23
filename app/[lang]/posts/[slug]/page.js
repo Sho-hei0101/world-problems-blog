@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ActionChecklistLink from "../../../components/ActionChecklistLink";
 import { notFound } from "next/navigation";
 import {
   SUPPORTED_LANGUAGES,
@@ -225,9 +226,9 @@ export default function PostPage({ params }) {
         />
       )}
       <div className="cta-stack">
-        <Link className="cta" href={`/${lang}/checklist/${slug}`}>
+        <ActionChecklistLink className="cta" href={`/${lang}/checklist/${slug}`} postSlug={slug}>
           Get the action checklist
-        </Link>
+        </ActionChecklistLink>
         <Link
           className="cta-secondary"
           href={relatedPosts[0] ? buildPostUrl(lang, relatedPosts[0].slug) : `/${lang}/`}

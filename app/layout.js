@@ -1,4 +1,5 @@
 import "./globals.css";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 import { SITE_URL } from "../lib/site";
 
 export const metadata = {
@@ -10,7 +11,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <GoogleAnalytics />
+        {children}
+      </body>
     </html>
   );
 }
