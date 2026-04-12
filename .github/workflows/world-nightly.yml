@@ -70,47 +70,9 @@ jobs:
             content/*/posts/**
       - name: No changes detected
         if: steps.create_pr.outputs.pull-request-number == ''
-        run: |
-          echo "::warning::No PR created (no changes detected)."
-          exit 1
-      - name: Enable auto-merge
+        run: echo "::notice::No PR created (no changes detected)."
+      - name: PR created
         if: steps.create_pr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pr_number="${{ steps.create_pr.outputs.pull-request-number }}"
-          pr_url="${{ steps.create_pr.outputs.pull-request-url }}"
-          echo "PR URL (from create-pull-request): ${pr_url}"
-
-          pr_json="$(gh pr view "${pr_number}" --json author,headRefName,baseRefName,url)"
-          author="$(echo "${pr_json}" | jq -r '.author.login')"
-          head_ref="$(echo "${pr_json}" | jq -r '.headRefName')"
-          base_ref="$(echo "${pr_json}" | jq -r '.baseRefName')"
-          resolved_url="$(echo "${pr_json}" | jq -r '.url')"
-
-          echo "Resolved PR URL: ${resolved_url}"
-          echo "Author: ${author}"
-          echo "Head ref: ${head_ref}"
-          echo "Base ref: ${base_ref}"
-
-          if [[ "${base_ref}" != "main" ]]; then
-            echo "Refusing to auto-merge: base branch is not main."
-            exit 1
-          fi
-
-          if [[ "${head_ref}" != automation/world-problems-* ]]; then
-            echo "Refusing to auto-merge: head ref does not match automation/world-problems-*."
-            exit 1
-          fi
-
-          if [[ "${author}" != "github-actions[bot]" \
-             && "${author}" != "github-actions" \
-             && "${author}" != "app/github-actions" \
-             && "${author}" != "${GITHUB_ACTOR}" ]]; then
-            echo "Refusing to auto-merge: unsupported PR author: ${author}"
-            exit 1
-          fi
-
-          gh pr merge "${pr_url}" --squash --auto --delete-branch
-          gh pr view "${pr_number}" --json mergeStateStatus,autoMergeRequest,mergedAt,url --jq \
-            '"Auto-merge status: \(.mergeStateStatus) | Auto-merge enabled: \(.autoMergeRequest != null) | Merged at: \(.mergedAt) | URL: \(.url)"'
+          echo "PR created successfully: #${{ steps.create_pr.outputs.pull-request-number }}"
+          echo "URL: ${{ steps.create_pr.outputs.pull-request-url }}"
