@@ -2,9 +2,7 @@ name: Auto-merge generated PRs
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  check_suite:
-    types: [completed]
+    types: [opened, synchronize, reopened]
   workflow_run:
     workflows: ["World Problems Nightly"]
     types: [completed]
@@ -15,7 +13,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: automerge-generated-prs-${{ github.event.pull_request.number || github.event.check_suite.head_sha || github.event.workflow_run.head_sha || github.run_id }}
+  group: automerge-generated-prs-${{ github.event.pull_request.number || github.event.workflow_run.head_sha || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -31,32 +29,67 @@ jobs:
             const eventName = context.eventName;
 
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const BOT_AUTHORS = new Set(['github-actions[bot]', 'app/github-actions']);
+            const BRANCH_PREFIX = 'automation/world-problems-';
+            const TITLE_PREFIX = 'chore: add new world problems posts';
+
+            function isEligibleByMetadata(pr) {
+              const author = pr.user?.login || '';
+              const headRef = pr.head?.ref || '';
+              const baseRef = pr.base?.ref || '';
+              const title = pr.title || '';
+
+              if (pr.state !== 'open') {
+                return { ok: false, reason: 'not open' };
+              }
+
+              if (pr.draft) {
+                return { ok: false, reason: 'draft PR' };
+              }
+
+              if (baseRef !== 'main') {
+                return { ok: false, reason: `base is ${baseRef}` };
+              }
+
+              if (!BOT_AUTHORS.has(author)) {
+                return { ok: false, reason: `author is ${author}` };
+              }
+
+              if (!headRef.startsWith(BRANCH_PREFIX)) {
+                return { ok: false, reason: `head is ${headRef}` };
+              }
+
+              if (!title.startsWith(TITLE_PREFIX)) {
+                return { ok: false, reason: `title is \"${title}\"` };
+              }
+
+              return { ok: true, reason: 'metadata match' };
+            }
 
             async function collectCandidatePRNumbers() {
-              if (eventName === 'pull_request') {
-                return [context.payload.pull_request.number];
-              }
+              try {
+                if (eventName === 'pull_request') {
+                  return [context.payload.pull_request.number];
+                }
 
-              if (eventName === 'check_suite') {
-                const prs = context.payload.check_suite?.pull_requests || [];
-                return prs.map((pr) => pr.number).filter(Boolean);
-              }
+                if (eventName === 'workflow_run') {
+                  const prs = context.payload.workflow_run?.pull_requests || [];
+                  return prs.map((pr) => pr.number).filter(Boolean);
+                }
 
-              if (eventName === 'workflow_run') {
-                const prs = context.payload.workflow_run?.pull_requests || [];
-                return prs.map((pr) => pr.number).filter(Boolean);
-              }
-
-              if (eventName === 'workflow_dispatch') {
-                const { data } = await github.rest.pulls.list({
-                  owner,
-                  repo,
-                  state: 'open',
-                  per_page: 100,
-                  sort: 'updated',
-                  direction: 'desc'
-                });
-                return data.map((pr) => pr.number);
+                if (eventName === 'workflow_dispatch') {
+                  const { data } = await github.rest.pulls.list({
+                    owner,
+                    repo,
+                    state: 'open',
+                    per_page: 100,
+                    sort: 'updated',
+                    direction: 'desc'
+                  });
+                  return data.map((pr) => pr.number);
+                }
+              } catch (error) {
+                core.warning(`Failed to collect candidate PRs: ${error.message}`);
               }
 
               return [];
@@ -77,47 +110,52 @@ jobs:
             }
 
             async function isChecksPassing(headSha, requiredContexts) {
-              const combined = await github.rest.repos.getCombinedStatusForRef({
-                owner,
-                repo,
-                ref: headSha
-              });
-
-              if (combined.data.state === 'failure' || combined.data.state === 'error') {
-                return { ok: false, reason: `Combined status is ${combined.data.state}` };
-              }
-
-              const checks = await github.rest.checks.listForRef({
-                owner,
-                repo,
-                ref: headSha,
-                per_page: 100
-              });
-
-              const checkRuns = checks.data.check_runs || [];
-              const badRun = checkRuns.find((run) => run.status !== 'completed' || run.conclusion !== 'success');
-              if (badRun) {
-                return {
-                  ok: false,
-                  reason: `Check run not successful: ${badRun.name} (${badRun.status}/${badRun.conclusion})`
-                };
-              }
-
-              if (requiredContexts.length > 0) {
-                const statuses = combined.data.statuses || [];
-                const missing = requiredContexts.filter((contextName) => {
-                  const latest = statuses.find((s) => s.context === contextName);
-                  return !latest || latest.state !== 'success';
+              try {
+                const combined = await github.rest.repos.getCombinedStatusForRef({
+                  owner,
+                  repo,
+                  ref: headSha
                 });
 
-                if (missing.length > 0) {
-                  return { ok: false, reason: `Required contexts not successful: ${missing.join(', ')}` };
+                if (combined.data.state === 'failure' || combined.data.state === 'error') {
+                  return { ok: false, reason: `Combined status is ${combined.data.state}` };
                 }
-              } else if (combined.data.state !== 'success') {
-                return { ok: false, reason: `Combined status is ${combined.data.state}` };
-              }
 
-              return { ok: true, reason: 'All checks passed' };
+                const checks = await github.rest.checks.listForRef({
+                  owner,
+                  repo,
+                  ref: headSha,
+                  per_page: 100
+                });
+
+                const checkRuns = checks.data.check_runs || [];
+                const badRun = checkRuns.find((run) => run.status !== 'completed' || run.conclusion !== 'success');
+                if (badRun) {
+                  return {
+                    ok: false,
+                    reason: `Check run not successful: ${badRun.name} (${badRun.status}/${badRun.conclusion})`
+                  };
+                }
+
+                if (requiredContexts.length > 0) {
+                  const statuses = combined.data.statuses || [];
+                  const missing = requiredContexts.filter((contextName) => {
+                    const latest = statuses.find((s) => s.context === contextName);
+                    return !latest || latest.state !== 'success';
+                  });
+
+                  if (missing.length > 0) {
+                    return { ok: false, reason: `Required contexts not successful: ${missing.join(', ')}` };
+                  }
+                } else if (combined.data.state !== 'success') {
+                  return { ok: false, reason: `Combined status is ${combined.data.state}` };
+                }
+
+                return { ok: true, reason: 'All checks passed' };
+              } catch (error) {
+                core.warning(`Failed to evaluate checks for ${headSha}: ${error.message}`);
+                return { ok: false, reason: 'API error while checking statuses' };
+              }
             }
 
             async function deleteHeadBranch(headRef) {
@@ -142,83 +180,64 @@ jobs:
             core.info(`Evaluating candidate PRs: ${candidates.join(', ')}`);
 
             for (const number of candidates) {
-              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
-
-              if (pr.state !== 'open') {
-                core.info(`PR #${number} is not open. Skipping.`);
-                continue;
-              }
-
-              if (pr.draft) {
-                core.info(`PR #${number} is draft. Skipping.`);
-                continue;
-              }
-
-              const author = pr.user?.login || '';
-              const headRef = pr.head?.ref || '';
-              const baseRef = pr.base?.ref || '';
-              const byActionsBot = author === 'github-actions[bot]';
-              const byAutomationBranch = headRef.startsWith('automation/world-problems-');
-
-              if (!byActionsBot && !byAutomationBranch) {
-                core.info(`PR #${number} is not an automation PR (author=${author}, head=${headRef}). Skipping.`);
-                continue;
-              }
-
-              if (baseRef !== 'main') {
-                core.info(`PR #${number} targets ${baseRef}, not main. Skipping.`);
-                continue;
-              }
-
-              const requiredContexts = await getRequiredContexts(baseRef);
-              let merged = false;
-
-              for (let attempt = 1; attempt <= 8; attempt++) {
-                const { data: current } = await github.rest.pulls.get({ owner, repo, pull_number: number });
-
-                if (current.state !== 'open') {
-                  core.info(`PR #${number} is no longer open.`);
-                  merged = current.merged;
-                  break;
-                }
-
-                if (current.mergeable === null) {
-                  core.info(`PR #${number} mergeable is null (attempt ${attempt}/8). Retrying in 15s...`);
-                  await sleep(15000);
+              try {
+                const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+                const meta = isEligibleByMetadata(pr);
+                if (!meta.ok) {
+                  core.info(`PR #${number} is not eligible: ${meta.reason}. Skipping.`);
                   continue;
                 }
 
-                if (!current.mergeable || current.mergeable_state === 'dirty') {
-                  core.info(`PR #${number} is not mergeable yet (mergeable=${current.mergeable}, state=${current.mergeable_state}).`);
+                const requiredContexts = await getRequiredContexts(pr.base.ref);
+                let merged = false;
+
+                for (let attempt = 1; attempt <= 8; attempt++) {
+                  const { data: current } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+                  const currentMeta = isEligibleByMetadata(current);
+                  if (!currentMeta.ok) {
+                    core.info(`PR #${number} became ineligible: ${currentMeta.reason}.`);
+                    break;
+                  }
+
+                  if (current.mergeable === null) {
+                    core.info(`PR #${number} mergeable is null (attempt ${attempt}/8). Retrying in 15s...`);
+                    await sleep(15000);
+                    continue;
+                  }
+
+                  if (!current.mergeable || current.mergeable_state === 'dirty') {
+                    core.info(`PR #${number} is not mergeable yet (mergeable=${current.mergeable}, state=${current.mergeable_state}).`);
+                    break;
+                  }
+
+                  const checks = await isChecksPassing(current.head.sha, requiredContexts);
+                  if (!checks.ok) {
+                    core.info(`PR #${number} checks not ready: ${checks.reason}`);
+                    await sleep(15000);
+                    continue;
+                  }
+
+                  try {
+                    await github.rest.pulls.merge({
+                      owner,
+                      repo,
+                      pull_number: number,
+                      merge_method: 'squash'
+                    });
+                    core.info(`Merged PR #${number} with squash.`);
+                    await deleteHeadBranch(current.head.ref);
+                    merged = true;
+                  } catch (error) {
+                    core.warning(`Merge attempt failed for PR #${number}: ${error.message}`);
+                  }
+
                   break;
                 }
 
-                const checks = await isChecksPassing(current.head.sha, requiredContexts);
-                if (!checks.ok) {
-                  core.info(`PR #${number} checks not ready: ${checks.reason}`);
-                  await sleep(15000);
-                  continue;
+                if (!merged) {
+                  core.info(`PR #${number} was not merged in this run (safe exit, no retry loop).`);
                 }
-
-                try {
-                  await github.rest.pulls.merge({
-                    owner,
-                    repo,
-                    pull_number: number,
-                    merge_method: 'squash'
-                  });
-
-                  core.info(`Merged PR #${number} with squash.`);
-                  await deleteHeadBranch(current.head.ref);
-                  merged = true;
-                } catch (error) {
-                  core.warning(`Merge attempt failed for PR #${number}: ${error.message}`);
-                }
-
-                break;
-              }
-
-              if (!merged) {
-                core.info(`PR #${number} was not merged in this run (safe exit, no retry loop).`);
+              } catch (error) {
+                core.warning(`Failed to process PR #${number}: ${error.message}`);
               }
             }
