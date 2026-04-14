@@ -111,43 +111,113 @@ jobs:
 
             async function isChecksPassing(headSha, requiredContexts) {
               try {
-                const combined = await github.rest.repos.getCombinedStatusForRef({
-                  owner,
-                  repo,
-                  ref: headSha
-                });
+                const [combined, checks] = await Promise.all([
+                  github.rest.repos.getCombinedStatusForRef({
+                    owner,
+                    repo,
+                    ref: headSha
+                  }),
+                  github.rest.checks.listForRef({
+                    owner,
+                    repo,
+                    ref: headSha,
+                    per_page: 100
+                  })
+                ]);
 
-                if (combined.data.state === 'failure' || combined.data.state === 'error') {
-                  return { ok: false, reason: `Combined status is ${combined.data.state}` };
+                const statuses = combined.data.statuses || [];
+                const checkRuns = checks.data.check_runs || [];
+
+                if (requiredContexts.length > 0) {
+                  const failingContexts = [];
+
+                  for (const contextName of requiredContexts) {
+                    const latest = statuses.find((s) => s.context === contextName);
+                    if (!latest || latest.state !== 'success') {
+                      failingContexts.push({
+                        context: contextName,
+                        state: latest?.state || 'missing'
+                      });
+                    }
+                  }
+
+                  if (failingContexts.length > 0) {
+                    for (const context of failingContexts) {
+                      core.info(
+                        `Required context blocking merge: ${context.context} (state=${context.state})`
+                      );
+                    }
+                    return {
+                      ok: false,
+                      reason: `Required contexts not successful: ${failingContexts
+                        .map((context) => `${context.context}=${context.state}`)
+                        .join(', ')}`
+                    };
+                  }
+
+                  const nonSuccessRuns = checkRuns.filter(
+                    (run) => run.status !== 'completed' || run.conclusion !== 'success'
+                  );
+                  if (nonSuccessRuns.length > 0) {
+                    for (const run of nonSuccessRuns) {
+                      core.info(
+                        `Non-success check run (ignored because required contexts are configured): ${run.name} (status=${run.status}, conclusion=${run.conclusion || 'null'})`
+                      );
+                    }
+                  }
+
+                  return { ok: true, reason: 'All required contexts passed' };
                 }
 
-                const checks = await github.rest.checks.listForRef({
-                  owner,
-                  repo,
-                  ref: headSha,
-                  per_page: 100
-                });
+                const blockingRuns = [];
+                const waitingRuns = [];
 
-                const checkRuns = checks.data.check_runs || [];
-                const badRun = checkRuns.find((run) => run.status !== 'completed' || run.conclusion !== 'success');
-                if (badRun) {
+                for (const run of checkRuns) {
+                  const conclusion = run.conclusion || 'null';
+                  if (run.status !== 'completed') {
+                    waitingRuns.push({ name: run.name, status: run.status, conclusion });
+                    continue;
+                  }
+
+                  if (['failure', 'error', 'cancelled'].includes(conclusion)) {
+                    blockingRuns.push({ name: run.name, status: run.status, conclusion });
+                    continue;
+                  }
+
+                  if (!['success', 'neutral', 'skipped'].includes(conclusion)) {
+                    blockingRuns.push({ name: run.name, status: run.status, conclusion });
+                  }
+                }
+
+                if (blockingRuns.length > 0) {
+                  for (const run of blockingRuns) {
+                    core.info(
+                      `Check run blocking merge: ${run.name} (status=${run.status}, conclusion=${run.conclusion})`
+                    );
+                  }
                   return {
                     ok: false,
-                    reason: `Check run not successful: ${badRun.name} (${badRun.status}/${badRun.conclusion})`
+                    reason: `Blocking check runs: ${blockingRuns
+                      .map((run) => `${run.name}=${run.status}/${run.conclusion}`)
+                      .join(', ')}`
                   };
                 }
 
-                if (requiredContexts.length > 0) {
-                  const statuses = combined.data.statuses || [];
-                  const missing = requiredContexts.filter((contextName) => {
-                    const latest = statuses.find((s) => s.context === contextName);
-                    return !latest || latest.state !== 'success';
-                  });
-
-                  if (missing.length > 0) {
-                    return { ok: false, reason: `Required contexts not successful: ${missing.join(', ')}` };
+                if (waitingRuns.length > 0) {
+                  for (const run of waitingRuns) {
+                    core.info(
+                      `Check run still in progress: ${run.name} (status=${run.status}, conclusion=${run.conclusion})`
+                    );
                   }
-                } else if (combined.data.state !== 'success') {
+                  return {
+                    ok: false,
+                    reason: `Check runs still in progress: ${waitingRuns
+                      .map((run) => `${run.name}=${run.status}/${run.conclusion}`)
+                      .join(', ')}`
+                  };
+                }
+
+                if (checkRuns.length === 0 && combined.data.state !== 'success') {
                   return { ok: false, reason: `Combined status is ${combined.data.state}` };
                 }
 
