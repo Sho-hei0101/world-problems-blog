@@ -7,6 +7,11 @@ on:
     workflows: ["World Problems Nightly"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "One generated PR to retry (never processes the backlog)"
+        required: true
+        type: number
 
 permissions:
   contents: write
@@ -73,20 +78,36 @@ jobs:
                 }
 
                 if (eventName === 'workflow_run') {
-                  const prs = context.payload.workflow_run?.pull_requests || [];
-                  return prs.map((pr) => pr.number).filter(Boolean);
-                }
+                  const run = context.payload.workflow_run;
+                  if (!run || run.conclusion !== 'success') {
+                    core.info(`Nightly workflow did not succeed (conclusion=${run?.conclusion || 'missing'}).`);
+                    return [];
+                  }
 
-                if (eventName === 'workflow_dispatch') {
+                  // PRs opened with GITHUB_TOKEN do not emit another pull_request
+                  // workflow. Also, workflow_run.pull_requests is commonly empty when
+                  // the PR was created during the completed run. Resolve the one branch
+                  // owned by this nightly run instead of scanning (and potentially
+                  // merging) the entire backlog.
+                  const head = `${owner}:${BRANCH_PREFIX}${run.id}`;
                   const { data } = await github.rest.pulls.list({
                     owner,
                     repo,
                     state: 'open',
-                    per_page: 100,
-                    sort: 'updated',
-                    direction: 'desc'
+                    head,
+                    base: 'main',
+                    per_page: 10
                   });
                   return data.map((pr) => pr.number);
+                }
+
+                if (eventName === 'workflow_dispatch') {
+                  const number = Number(context.payload.inputs?.pr_number);
+                  if (!Number.isSafeInteger(number) || number <= 0) {
+                    core.setFailed('workflow_dispatch requires a positive integer pr_number.');
+                    return [];
+                  }
+                  return [number];
                 }
               } catch (error) {
                 core.warning(`Failed to collect candidate PRs: ${error.message}`);
@@ -288,12 +309,17 @@ jobs:
                   }
 
                   try {
-                    await github.rest.pulls.merge({
+                    const { data: mergeResult } = await github.rest.pulls.merge({
                       owner,
                       repo,
                       pull_number: number,
-                      merge_method: 'squash'
+                      merge_method: 'squash',
+                      sha: current.head.sha
                     });
+                    if (!mergeResult.merged) {
+                      core.warning(`GitHub declined merge for PR #${number}: ${mergeResult.message}`);
+                      break;
+                    }
                     core.info(`Merged PR #${number} with squash.`);
                     await deleteHeadBranch(current.head.ref);
                     merged = true;
