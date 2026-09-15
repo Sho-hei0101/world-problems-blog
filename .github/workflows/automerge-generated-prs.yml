@@ -7,6 +7,11 @@ on:
     workflows: ["World Problems Nightly"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "One generated PR to retry (never processes the backlog)"
+        required: true
+        type: number
 
 permissions:
   contents: write
@@ -97,15 +102,12 @@ jobs:
                 }
 
                 if (eventName === 'workflow_dispatch') {
-                  const { data } = await github.rest.pulls.list({
-                    owner,
-                    repo,
-                    state: 'open',
-                    per_page: 100,
-                    sort: 'updated',
-                    direction: 'desc'
-                  });
-                  return data.map((pr) => pr.number);
+                  const number = Number(context.payload.inputs?.pr_number);
+                  if (!Number.isSafeInteger(number) || number <= 0) {
+                    core.setFailed('workflow_dispatch requires a positive integer pr_number.');
+                    return [];
+                  }
+                  return [number];
                 }
               } catch (error) {
                 core.warning(`Failed to collect candidate PRs: ${error.message}`);
